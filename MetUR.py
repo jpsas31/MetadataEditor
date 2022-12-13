@@ -6,8 +6,9 @@ from queue import Queue
 import queue
 import urwid
 import media
-import metadataEditor
+import metadataEditorPop
 import viewInfo
+import popupMenu
 from youtube import Youtube
 from singleton import BorgSingleton
 # Esta linea impide que se vean los errores de eyed3
@@ -36,13 +37,16 @@ class Display:
         title, album, artist, albumArt = state.viewInfo.songInfo(0)
         self.walker = urwid.SimpleListWalker(self.listMenu())
         self.lista = self.ListMod(self.walker, self)
-        self.pilaMetadata = metadataEditor.MetadaEditor(self.lista)
+        self.pilaMetadata = metadataEditorPop.MetadaEditor(self.lista,'pilaMetadata')
+
+        state.pilaMetadata = self.pilaMetadata
 
        
 
         self.footer = media.Footer()
         self.pila = self.pilaMetadata
-        pilacomp = urwid.LineBox(urwid.Filler(self.pila, valign="top"), "Info")
+        # pilacomp = urwid.LineBox(urwid.Filler(self.pila, valign="top"), "Info")
+        pilacomp = urwid.LineBox(self.pila, "Info")
 
         self.texto_info = urwid.Text("")
         editURL = self.CustomEdit("Escribe link: ", parent=self, multiline=True)
@@ -61,6 +65,7 @@ class Display:
             min_width=1,
             box_columns=None,
         )
+
         self.frame = urwid.Frame(self.columns, footer=self.footer)
         self.loop = urwid.MainLoop(
             self.frame,
@@ -135,10 +140,6 @@ class Display:
                             break
                     break
 
-    def update_text(self, read_data):
-
-        self.texto_info.set_text(self.texto_info.text + read_data)
-        self.texto_info.set_text("kk")
 
     def listMenu(self):
         body = []
@@ -193,7 +194,7 @@ class Display:
 
             cursorPos = self.get_focus()[1]
 
-            self.display.pila.contents[-2][0].original_widget.set_label(
+            self.display.pila.contents[-3].original_widget.set_label(
                 "Llenar Campos automaticamente"
             )
 
@@ -222,13 +223,13 @@ class Display:
                 )
 
                 os.chdir(state.viewInfo.dir)
-                self.display.pila.contents[1][0].set_text(
+                self.display.pila.contents[1].set_text(
                     str(state.viewInfo.songFileName(cursorPos))
                 )
-                self.display.pila.contents[3][0].set_edit_text(str(title))
-                self.display.pila.contents[5][0].set_edit_text(str(album))
-                self.display.pila.contents[7][0].set_edit_text(str(artist))
-                self.display.pila.contents[8][0].original_widget.set_label(
+                self.display.pila.contents[3].set_edit_text(str(title))
+                self.display.pila.contents[5].set_edit_text(str(album))
+                self.display.pila.contents[7].set_edit_text(str(artist))
+                self.display.pila.contents[8].original_widget.set_label(
                     str(albumArt)
                 )
             elif key == "s":
@@ -251,13 +252,13 @@ class Display:
                     cursorPos
                 )
                 os.chdir(state.viewInfo.dir)
-                self.display.pila.contents[1][0].set_text(
+                self.display.pila.contents[1].set_text(
                     str(state.viewInfo.songFileName(cursorPos))
                 )
-                self.display.pila.contents[3][0].set_edit_text(str(title))
-                self.display.pila.contents[5][0].set_edit_text(str(album))
-                self.display.pila.contents[7][0].set_edit_text(str(artist))
-                self.display.pila.contents[8][0].original_widget.set_label(
+                self.display.pila.contents[3].set_edit_text(str(title))
+                self.display.pila.contents[5].set_edit_text(str(album))
+                self.display.pila.contents[7].set_edit_text(str(artist))
+                self.display.pila.contents[8].original_widget.set_label(
                     str(albumArt)
                 )
 
@@ -278,6 +279,7 @@ def main():
     state.queueYt=message_q
     state.updateList=False
     display=Display()
+    
     display.loop.run()
     
     stop_ev.set()
