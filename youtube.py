@@ -43,6 +43,7 @@ class Youtube():
                 ydl.download([link])
                 state.updateList=False
                 state.queueYt.put('Done')
-            except:
+            except youtube_dl.utils.DownloadError as error:  
                 state.updateList=False
+                raise youtube_dl.utils.DownloadError(f'Unable to download video with error:{error}')
 

@@ -14,9 +14,9 @@ def get_Track_Features(query):
             client_secret=CLIENT_SECRET)
     sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
     search=sp.search(query)
-    # with open('data.json', 'w') as outfile:
-    #     json.dump(search["tracks"]["items"][0], outfile)
-    if (len(search["tracks"]["items"])==0): return None,None,None,None
+
+    if (len(search["tracks"]["items"])==0): 
+        return None,None,None,None
 
     meta=search["tracks"]["items"][0]
     name = meta['name']

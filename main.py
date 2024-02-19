@@ -8,7 +8,6 @@ import urwid
 import media
 import metadataEditorPop
 import viewInfo
-import popupMenu
 from youtube import Youtube
 from singleton import BorgSingleton
 # Esta linea impide que se vean los errores de eyed3
@@ -56,7 +55,8 @@ class Display:
             urwid.Pile([textoDescarga, texto_decorado]), "Youtubedl"
         )
 
-        pila2 = [pilacomp, self.pilaYoutube]
+        pila2 = [pilacomp]
+        # , self.pilaYoutube]
         self.pilaPrincipal = urwid.LineBox(urwid.Pile(pila2))
         self.columns = urwid.Columns(
             [urwid.LineBox(self.lista, "Canciones"), self.pilaPrincipal],
@@ -105,7 +105,9 @@ class Display:
 
     def changeFocus(self, button, text):
         """
-        Small fuctions that is used by a button to change focus from the list to the metadata editor
+        Small fuctions that is used by a button to 
+        change focus from the list to the metadata 
+        editor
         """
         if self.columns.focus_col == 0:
             self.columns.focus_col = 1
@@ -125,11 +127,11 @@ class Display:
                 button = urwid.Button(cancion)
                 urwid.connect_signal(button, "click", self.changeFocus, cancion)
                 self.walker.append(urwid.AttrMap(button, None, focus_map="reversed"))
-                x = self.walker[-1].original_widget.get_label()
+                self.walker[-1].original_widget.get_label()
                 self.walker.sort(key=lambda x: x.original_widget.get_label())
         else:
             for cancion in range(state.viewInfo.songsLen()):
-                if not state.viewInfo.songFileName(cancion) in canciones:
+                if state.viewInfo.songFileName(cancion) not in canciones:
                     for widget in self.walker:
                         if (
                             widget.original_widget.get_label()
@@ -199,12 +201,12 @@ class Display:
             )
 
             if key == "down":
-                if self.focus != None:
+                if self.focus is not None:
                     cursorPos = cursorPos + 1
                     if cursorPos >= len(self.body):
                         cursorPos -= 1
             elif key == "up":
-                if self.focus != None:
+                if self.focus is not None:
                     cursorPos = cursorPos - 1
                     if cursorPos < 0:
                         cursorPos = 0
@@ -233,10 +235,10 @@ class Display:
                     str(albumArt)
                 )
             elif key == "s":
-                if self.focus != None:
+                if self.focus is not None:
                     media.resume_pause()
             elif key == "a":
-                if self.focus != None:
+                if self.focus is not None:
                     media.setMedia(state.viewInfo.songFileName(cursorPos))
                     self.display.footer[0].set_text(
                         state.viewInfo.songFileName(cursorPos)

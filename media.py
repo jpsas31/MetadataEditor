@@ -1,7 +1,6 @@
 from datetime import timedelta
 import urwid
 import vlc
-import threading
 from singleton import BorgSingleton
 state=BorgSingleton()
 Instance = vlc.Instance()
@@ -32,11 +31,15 @@ class MediaProgressBar(urwid.ProgressBar):
         
     def setDone(self,done):
         
-        if done ==0: done = 1
+        if done == 0: 
+            done = 1
         self.done=done
         
     def get_text(self):
-        return ':'.join(str(timedelta(milliseconds=int(self.current))).split('.')[0].split(':')[1:])
+        timeString = str(timedelta(milliseconds=int(self.current)))
+        if timeString[0] == '0':
+            return timeString[timeString.find(':')+1:]
+        return timeString
         
  
     def threadPlay(self):       
@@ -49,10 +52,6 @@ class MediaProgressBar(urwid.ProgressBar):
                 self.setDone(0)
                 self.set_completion((0))
                 
-
-   
-
-
 class Footer(urwid.Pile):
     def __init__(self) -> None:
         self.musicBar = MediaProgressBar("normal", "complete")

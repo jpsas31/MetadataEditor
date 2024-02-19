@@ -1,4 +1,3 @@
-from genericpath import isdir
 import os
 import re
 import shutil
@@ -106,8 +105,10 @@ def songInfo(fileName):
         artist=audiofile.tag.artist
         albumArt=len(audiofile.tag.images)
 
-        if albumArt==0: albumArt="No hay Album cover, presiona enter para buscarla automaticamente en internet y asignarla"
-        else :albumArt="Si tiene cover"
+        if albumArt==0: 
+            albumArt="No hay Album cover, presiona enter para buscarla automaticamente en internet y asignarla"
+        else:
+            albumArt="Si tiene cover"
         
         return title,album,artist,albumArt
     return "deleted","deleted","deleted","deleted"
@@ -125,6 +126,11 @@ def llenarCampos(dir,fileName=None,show=True):
         outfile.write(query)
     
     n,ar,al,cover=spotifyInfo.get_Track_Features(query)
+    if (n is None or n =="None"): n =''
+    if (ar is None or ar  =="None"): ar =''
+    if (al is None or al  =="None"): al =''
+    if (cover is None or cover =="None"): cover =''
+
     audiofile=eyed3.load(fileName)
     audiofile.tag.title=n
     audiofile.tag.artist=ar
@@ -160,10 +166,14 @@ def queryCleaner(fileName):
     # with open('data3.txt', 'w') as outfile:
     #         outfile.write('\n'+"fasd "+title+artist+album)
     if(title != 'None' and title is not None):
-        if(artist is not None):artist=artist.replace('None',"")
-        elif(artist is  None):artist=""
-        if(album  is not None):album=album.replace('None',"")
-        elif(album is  None):album=""
+        if(artist is not None):
+            artist=artist.replace('None',"")
+        elif(artist is  None):
+            artist=""
+        if(album  is not None):
+            album=album.replace('None',"")
+        elif(album is  None):
+            album=""
         return ' '.join([title,artist,album]).lower()
     else: 
         query=fileName.lower()

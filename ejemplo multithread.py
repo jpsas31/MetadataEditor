@@ -1,6 +1,5 @@
 import logging
 import queue
-import sys
 import threading
 import time
 
@@ -102,7 +101,7 @@ def update_song(stop_event, msg_queue):
     media.parse()
     play.play()
     time.sleep(0.1)
-    duration = play.get_length()
+    play.get_length()
     # p.setDone(duration)
     while not stop_event.wait(timeout=0.002):
         # time.sleep(0.02)

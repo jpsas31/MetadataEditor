@@ -79,14 +79,14 @@ class MetadaEditor(urwid.Pile):
         tagModifier.verCover(fileName)
 
     def setCover(self, wid=None, fileName=None):
-        if fileName == None:
+        if fileName is None:
             fileName = state.viewInfo.canciones[self.lista.focus_position]
         audiofile = eyed3.load(state.viewInfo.canciones[self.lista.focus_position])
         if len(audiofile.tag.images) == 0:
 
             tagModifier.setCover(state.viewInfo.getDir(), fileName)
             audiofile = eyed3.load(state.viewInfo.canciones[self.lista.focus_position])
-            if wid != None:
+            if wid is not None:
                 if len(audiofile.tag.images) == 0:
                     wid.set_label("Cover no encontrada")
                 else:
@@ -94,7 +94,7 @@ class MetadaEditor(urwid.Pile):
 
         else:
             tagModifier.removeAlbumCover(fileName)
-            if wid != None:
+            if wid is not None:
                 wid.set_label("Cover eliminada")
                 
     def editHandler(self, widget, text):
@@ -146,7 +146,7 @@ class MetadaEditor(urwid.Pile):
         
     def llenarCampos(self, widget=None, fileName=None):
 
-        if fileName == None:
+        if fileName is None:
             fileName = state.viewInfo.songFileName(self.lista.focus_position)
         tagModifier.llenarCampos(state.viewInfo.getDir(), fileName)
         title, album, artist, albumArt = state.viewInfo.songInfo(
@@ -162,7 +162,7 @@ class MetadaEditor(urwid.Pile):
             self.contents[-2][0].original_widget.set_label(
                 "No se encontro la informacion"
             )
-    def automatiCover(self, widget):
+    def automatiCover(self, **widget):
         for i in range(state.viewInfo.songsLen()):
             fileName = state.viewInfo.songFileName(i)
             tagModifier.llenarCampos(state.viewInfo.getDir(), fileName, show=False)

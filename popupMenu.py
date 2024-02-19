@@ -1,6 +1,5 @@
 import urwid
 
-import media
 from singleton import BorgSingleton
 state = BorgSingleton()
 palette = [
