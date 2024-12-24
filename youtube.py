@@ -1,11 +1,10 @@
-import youtube_dl
+import yt_dlp
 from singleton import BorgSingleton
 
+state = BorgSingleton()
 
-state=BorgSingleton()
-class Youtube():        
-    class MyLogger(object):
-     
+class Youtube:        
+    class MyLogger:
         def debug(self, msg):
             state.queueYt.put(msg)
 
@@ -15,12 +14,12 @@ class Youtube():
         def error(self, msg):
             state.queueYt.put(msg)
 
-    def endHook(self,d):
+    def endHook(self, d):
         if d['status'] == 'finished':
             state.queueYt.put('Download is Done')
 
-    def youtube_descarga(self,link):
-        download_options={
+    def youtube_descarga(self, link):
+        download_options = {
             'format': 'bestaudio/best',
             'no_warnings': True,
             'logger': self.MyLogger(),
@@ -28,22 +27,19 @@ class Youtube():
             'nocheckcertificate': True,
             'progress_hooks': [self.endHook],
             'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                                                        
-                                }],
-                            
-                }
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
         
-        with youtube_dl.YoutubeDL(download_options) as ydl:
+        with yt_dlp.YoutubeDL(download_options) as ydl:
             ydl.cache.remove()
             try:
-                state.updateList=True
+                state.updateList = True
                 ydl.download([link])
-                state.updateList=False
+                state.updateList = False
                 state.queueYt.put('Done')
-            except youtube_dl.utils.DownloadError as error:  
-                state.updateList=False
-                raise youtube_dl.utils.DownloadError(f'Unable to download video with error:{error}')
-
+            except yt_dlp.utils.DownloadError as error:
+                state.updateList = False
+                raise yt_dlp.utils.DownloadError(f'Unable to download video with error: {error}')

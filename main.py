@@ -55,8 +55,8 @@ class Display:
             urwid.Pile([textoDescarga, texto_decorado]), "Youtubedl"
         )
 
-        pila2 = [pilacomp]
-        # , self.pilaYoutube]
+        pila2 = [pilacomp
+        , self.pilaYoutube]
         self.pilaPrincipal = urwid.LineBox(urwid.Pile(pila2))
         self.columns = urwid.Columns(
             [urwid.LineBox(self.lista, "Canciones"), self.pilaPrincipal],
