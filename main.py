@@ -1,5 +1,6 @@
 import os
 import queue
+import sys
 import threading
 from queue import Queue
 
@@ -197,11 +198,11 @@ class Display:
 
 
 def main():
-    # if len(sys.argv) <= 1:
-    #     raise Warning("Provide a valid dir")
-    # else:
-    #     dir = sys.argv[1]
-    dir = "."
+    if len(sys.argv) <= 1:
+        raise Warning("Provide a valid dir")
+    else:
+        dir = sys.argv[1]
+
     message_q = Queue()
     state.stop_event = threading.Event()
     state.viewInfo = viewInfo.ViewInfo(dir)

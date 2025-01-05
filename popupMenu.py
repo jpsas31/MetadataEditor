@@ -1,6 +1,7 @@
 import urwid
 
 from singleton import BorgSingleton
+
 state = BorgSingleton()
 palette = [
     ("Title", "black", "light blue"),
@@ -31,6 +32,7 @@ def popup(caption, choice, call, topWidget):
 
 class CascadingBoxes(urwid.WidgetPlaceholder):
     max_box_levels = 4
+
     #
     def __init__(self, elements):
         self.contents = elements
@@ -62,5 +64,3 @@ class CascadingBoxes(urwid.WidgetPlaceholder):
             self.box_level -= 1
         else:
             return super(CascadingBoxes, self).keypress(size, key)
-
-

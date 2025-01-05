@@ -140,7 +140,6 @@ class MetadataEditor(CascadingBoxes):
             with lock:
                 self.fill_progress.current += 100 / size
 
-        # Reset the UI
         self.original_widget = self.original_widget[0]
         self.box_level -= 1
 
