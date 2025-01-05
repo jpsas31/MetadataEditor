@@ -1,9 +1,8 @@
-import logging
 import os
 import queue
 import threading
 from queue import Queue
-import sys
+
 import urwid
 
 import metadataEditorPop
@@ -12,8 +11,6 @@ from media import AudioPlayer
 from mediaControls import Footer
 from singleton import BorgSingleton
 from youtube import Youtube
-
-
 
 state = BorgSingleton()
 
@@ -29,112 +26,102 @@ class Display:
     ]
 
     def __init__(self):
-        self.walker = urwid.SimpleListWalker(self.listMenu())
-        self.lista = self.ListMod(self.walker, self)
-        self.pilaMetadata = metadataEditorPop.MetadaEditor(self.lista, "pilaMetadata")
+        self.walker = urwid.SimpleListWalker(self._generate_menu())
+        self.song_list = self.ListMod(self.walker, self)
+        self.metadata_editor = metadataEditorPop.MetadataEditor(
+            self.song_list, "pilaMetadata"
+        )
 
-        state.pilaMetadata = self.pilaMetadata
+        state.pilaMetadata = self.metadata_editor
 
         self.audio_player = AudioPlayer()
         self.footer = Footer()
-        self.pila = self.pilaMetadata
-        pilacomp = urwid.LineBox(self.pila, "Info")
+        self.info_panel = urwid.LineBox(self.metadata_editor, "Info")
 
-        self.texto_info = urwid.Text("")
-        editURL = self.CustomEdit("Escribe link: ", parent=self, multiline=True)
-        textoDescarga = urwid.Filler(urwid.LineBox(editURL))
-        texto_decorado = urwid.Filler(urwid.LineBox(self.texto_info, ""))
-        self.pilaYoutube = urwid.LineBox(
-            urwid.Pile([textoDescarga, texto_decorado]), "Youtubedl"
+        self.text_info = urwid.Text("")
+        self.url_input = self.CustomEdit("Escribe link: ", parent=self, multiline=True)
+        self.youtube_panel = urwid.LineBox(
+            urwid.Pile(
+                [
+                    urwid.Filler(urwid.LineBox(self.url_input)),
+                    urwid.Filler(urwid.LineBox(self.text_info, "")),
+                ]
+            ),
+            "Youtubedl",
         )
 
-        pila2 = [pilacomp, self.pilaYoutube]
-        self.pilaPrincipal = urwid.LineBox(urwid.Pile(pila2))
+        self.main_panel = urwid.LineBox(
+            urwid.Pile([self.info_panel, self.youtube_panel])
+        )
         self.columns = urwid.Columns(
-            [urwid.LineBox(self.lista, "Canciones"), self.pilaPrincipal],
+            [urwid.LineBox(self.song_list, "Canciones"), self.main_panel],
             dividechars=4,
-            focus_column=0,
-            min_width=1,
-            box_columns=None,
         )
-
         self.frame = urwid.Frame(self.columns, footer=self.footer)
+
         self.loop = urwid.MainLoop(
-            self.frame,
-            palette=self.palette,
-            unhandled_input=self.exit,
-            handle_mouse=False,
+            self.frame, palette=self.palette, unhandled_input=self.exit
         )
 
         threading.Thread(
             target=self.audio_player.thread_play,
             args=[self.footer.music_bar.update_position],
         ).start()
-        self.check_messages(self.loop, None)
+        self._schedule_message_check()
 
-    def check_messages(self, loop, *_args):
-        loop.set_alarm_in(
-            sec=0.5,
-            callback=self.check_messages,
-        )
+    def _schedule_message_check(self):
+        self.loop.set_alarm_in(0.5, self._check_messages)
 
+    def _check_messages(self, loop, *_args):
         if state.updateList:
-            loop.set_alarm_in(
-                sec=5,
-                callback=self.updateWalker,
-            )
+            loop.set_alarm_in(5, self._update_song_list)
+
         try:
             msg = state.queueYt.get_nowait()
+            self.text_info.set_text(msg)
         except queue.Empty:
-            return
-        self.texto_info.set_text(msg)
+            pass
+        self._schedule_message_check()
 
     def exit(self, key):
         if key == "esc":
             state.stop_event.set()
             raise urwid.ExitMainLoop()
 
-    def changeFocus(self, button, text):
-        if self.columns.focus_col == 0:
-            self.columns.focus_col = 1
+    def _update_song_list(self, *_args):
+        current_songs = os.listdir(state.viewInfo.getDir())
+        current_songs = [song for song in current_songs if song.endswith(".mp3")]
 
-    def updateWalker(self, a=None, b=None):
-        canciones = os.listdir(state.viewInfo.getDir())
-        canciones = [x for x in canciones if "mp3" in x]
-        cancionesAgregar = list(set(canciones) - set(state.viewInfo.canciones))
-        cancionesAgregar.sort()
+        new_songs = sorted(set(current_songs) - set(state.viewInfo.canciones))
+        for song in new_songs:
+            state.viewInfo.addSong(song)
+            button = urwid.Button(song)
+            urwid.connect_signal(button, "click", self.change_focus, song)
+            self.walker.append(urwid.AttrMap(button, None, focus_map="reversed"))
 
-        if len(cancionesAgregar) > 0:
-            for cancion in cancionesAgregar:
-                state.viewInfo.addSong(cancion)
-                button = urwid.Button(cancion)
-                urwid.connect_signal(button, "click", self.changeFocus, cancion)
-                self.walker.append(urwid.AttrMap(button, None, focus_map="reversed"))
-                self.walker[-1].original_widget.get_label()
-                self.walker.sort(key=lambda x: x.original_widget.get_label())
-        else:
-            for cancion in range(state.viewInfo.songsLen()):
-                if state.viewInfo.songFileName(cancion) not in canciones:
-                    for widget in self.walker:
-                        if (
-                            widget.original_widget.get_label()
-                            == state.viewInfo.songFileName(cancion)
-                        ):
-                            self.walker.remove(widget)
-                            state.viewInfo.deleteSong(
-                                widget.original_widget.get_label()
-                            )
-                            break
+        removed_songs = [
+            song for song in state.viewInfo.canciones if song not in current_songs
+        ]
+        for song in removed_songs:
+            state.viewInfo.deleteSong(song)
+            for widget in self.walker:
+                if widget.original_widget.get_label() == song:
+                    self.walker.remove(widget)
                     break
 
-    def listMenu(self):
+    def _generate_menu(self):
         body = []
         for i in range(state.viewInfo.songsLen()):
-            cancion = state.viewInfo.songFileName(i)
-            button = urwid.Button(cancion)
-            urwid.connect_signal(button, "click", self.changeFocus, user_args=[cancion])
+            song_name = state.viewInfo.songFileName(i)
+            button = urwid.Button(song_name)
+            urwid.connect_signal(
+                button, "click", self.change_focus, user_args=[song_name]
+            )
             body.append(urwid.AttrMap(button, None, focus_map="reversed"))
         return body
+
+    def change_focus(self, button, song_name):
+        self.columns.focus_col = 1 if self.columns.focus_col == 0 else 0
 
     class CustomEdit(urwid.Edit):
         def __init__(self, caption="", edit_text="", multiline=False, parent=None):
@@ -142,97 +129,71 @@ class Display:
             self.parent = parent
             self.youtube = Youtube()
 
-        def URLDownload(self, text):
-            # threading.Thread(
-            #     target=self.youtube.youtube_descarga,
-            #     args=[text],
-            #     name="ydl_download",
-            # ).start()
-
-            super().set_edit_text("")
-
         def set_edit_text(self, text):
-            
             if text.endswith("\n"):
-                self.URLDownload(text)
-                self.parent.updateWalker()
-
+                self._download_url(text.strip())
+                self.parent._update_song_list()
             else:
                 super().set_edit_text(text)
 
+        def _download_url(self, text):
+            threading.Thread(
+                target=self.youtube.youtube_descarga, args=[text], name="ydl_download"
+            ).start()
+
     class ListMod(urwid.ListBox):
         def __init__(self, body, display):
-            self.display = display
             super().__init__(body)
+            self.display = display
 
         def keypress(self, size, key):
-            cursorPos = self.get_focus()[1]
+            cursor_pos = self.get_focus()[1]
+            self._handle_keypress(key, cursor_pos)
+            super().keypress(size, key)
 
-            self.display.pila.contents[-3].original_widget.set_label(
-                "Llenar Campos automaticamente"
-            )
-
+        def _handle_keypress(self, key, cursor_pos):
             if key == "down":
-                if self.focus is not None:
-                    cursorPos = cursorPos + 1
-                    if cursorPos >= len(self.body):
-                        cursorPos -= 1
+                self._move_focus(cursor_pos + 1)
             elif key == "up":
-                if self.focus is not None:
-                    cursorPos = cursorPos - 1
-                    if cursorPos < 0:
-                        cursorPos = 0
+                self._move_focus(cursor_pos - 1)
             elif key == "right":
-                if self.display.columns.focus_col == 0:
-                    self.display.columns.focus_col = 1
+                self.display.columns.focus_col = 1
+            elif key == "delete":
+                self._delete_song(cursor_pos)
+            elif key == "s":
+                self.display.audio_player.resume_pause()
+            elif key == "a":
+                self._play_song(cursor_pos)
             elif key == "esc":
                 state.stop_event.set()
                 self.display.exit(key)
                 raise urwid.ExitMainLoop()
 
-            elif key == "delete":
-                os.remove(state.viewInfo.songFileName(cursorPos))
-                self.display.updateWalker()
-                cursorPos = self.get_focus()[1]
+        def _move_focus(self, new_pos):
+            if 0 <= new_pos < len(self.body):
+                title, album, artist, album_art = state.viewInfo.songInfo(new_pos)
+                self._update_metadata_panel(new_pos, title, album, artist, album_art)
 
-                title, album, artist, albumArt = state.viewInfo.songInfo(cursorPos)
+        def _delete_song(self, pos):
+            file_name = state.viewInfo.songFileName(pos)
+            os.remove(file_name)
+            self.display._update_song_list()
 
-                os.chdir(state.viewInfo.dir)
-                self.display.pila.contents[1].set_text(
-                    str(state.viewInfo.songFileName(cursorPos))
-                )
-                self.display.pila.contents[3].set_edit_text(str(title))
-                self.display.pila.contents[5].set_edit_text(str(album))
-                self.display.pila.contents[7].set_edit_text(str(artist))
-                self.display.pila.contents[8].original_widget.set_label(str(albumArt))
-            elif key == "s":
-                if self.focus is not None:
-                    self.display.audio_player.resume_pause()
-            elif key == "a":
-                if self.focus is not None:
-                    self.display.audio_player.set_media(
-                        state.viewInfo.songFileName(cursorPos)
-                    )
-                    self.display.footer[0].set_text(
-                        state.viewInfo.songFileName(cursorPos)
-                    )
+        def _play_song(self, pos):
+            file_name = state.viewInfo.songFileName(pos)
+            self.display.audio_player.set_media(file_name)
+            self.display.footer.set_text(file_name)
 
-            if cursorPos is None:
-                super().keypress(size, key)
-                return
-
-            if key in {"down", "up"} and cursorPos < len(self.body):
-                title, album, artist, albumArt = state.viewInfo.songInfo(cursorPos)
-                os.chdir(state.viewInfo.dir)
-                self.display.pila.contents[1].set_text(
-                    str(state.viewInfo.songFileName(cursorPos))
-                )
-                self.display.pila.contents[3].set_edit_text(str(title))
-                self.display.pila.contents[5].set_edit_text(str(album))
-                self.display.pila.contents[7].set_edit_text(str(artist))
-                self.display.pila.contents[8].original_widget.set_label(str(albumArt))
-
-            super().keypress(size, key)
+        def _update_metadata_panel(self, pos, title, album, artist, album_art):
+            self.display.metadata_editor.contents[1].set_text(
+                state.viewInfo.songFileName(pos)
+            )
+            self.display.metadata_editor.contents[3].set_edit_text(title)
+            self.display.metadata_editor.contents[5].set_edit_text(album)
+            self.display.metadata_editor.contents[7].set_edit_text(artist)
+            self.display.metadata_editor.contents[8].original_widget.set_label(
+                album_art
+            )
 
 
 def main():
@@ -240,7 +201,7 @@ def main():
     #     raise Warning("Provide a valid dir")
     # else:
     #     dir = sys.argv[1]
-    dir="."
+    dir = "."
     message_q = Queue()
     state.stop_event = threading.Event()
     state.viewInfo = viewInfo.ViewInfo(dir)

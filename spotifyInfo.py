@@ -24,6 +24,4 @@ def get_Track_Features(query):
     artist = meta['album']['artists'][0]['name']
     cover=meta['album']['images'][0]['url']
    
-    with open('data2.json', 'a') as outfile:
-        json.dump([name,artist,album],outfile)
     return name,artist,album,cover

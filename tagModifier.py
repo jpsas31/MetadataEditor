@@ -1,9 +1,9 @@
 import os
 import re
-import shutil
 from io import BytesIO
+
 import requests
-from mutagen.id3 import ID3, APIC, TIT2, TPE1, TALB
+from mutagen.id3 import APIC, ID3, TALB, TIT2, TPE1
 from PIL import Image, ImageFile
 
 import spotifyInfo
@@ -28,46 +28,39 @@ class MP3Editor:
 
     def add_album_cover(self, image_link, show=False):
         resp = requests.get(image_link, stream=True)
-        dir_path = os.path.dirname(self.file_path)
-        album_dir = os.path.join(dir_path, "album")
 
-        if not os.path.exists(album_dir):
-            os.makedirs(album_dir)
-
-        cover_path = os.path.join(album_dir, "album.jpg")
-        with open(cover_path, "wb") as local_file:
-            resp.raw.decode_content = True
-            shutil.copyfileobj(resp.raw, local_file)
-
-        with open(cover_path, "rb") as fp:
-            image_data = fp.read()
+        image_data = resp.content
 
         if show:
-            with Image.open(cover_path) as img:
+            with Image.open(BytesIO(image_data)) as img:
                 img.show()
 
-        if not self.audiofile.get("APIC:"):
+        if not self.audiofile.get("APIC:Cover"):
             self.audiofile.add(
-                APIC(encoding=3, mime="image/jpeg", type=3, desc="Cover", data=image_data)
+                APIC(
+                    encoding=3, mime="image/jpeg", type=3, desc="Cover", data=image_data
+                )
             )
             self.audiofile.save()
 
     def show_album_cover(self):
-        apic_frame = self.audiofile.get("APIC:")
+        apic_frame = self.audiofile.get("APIC:Cover")
         if apic_frame:
             with Image.open(BytesIO(apic_frame.data)) as img:
                 ImageFile.LOAD_TRUNCATED_IMAGES = True
                 img.show()
 
     def remove_album_cover(self):
-        self.audiofile.delall("APIC")
+        self.audiofile.delall("APIC:Cover")
         self.audiofile.save()
 
     def song_info(self):
         title = self.audiofile.get("TIT2").text[0] if self.audiofile.get("TIT2") else ""
         album = self.audiofile.get("TALB").text[0] if self.audiofile.get("TALB") else ""
-        artist = self.audiofile.get("TPE1").text[0] if self.audiofile.get("TPE1") else ""
-        album_art = "Yes" if self.audiofile.get("APIC:") else "No"
+        artist = (
+            self.audiofile.get("TPE1").text[0] if self.audiofile.get("TPE1") else ""
+        )
+        album_art = False if self.audiofile.get("APIC:Cover") == "" else True
 
         return title, album, artist, album_art
 
@@ -87,7 +80,7 @@ class MP3Editor:
             self.add_album_cover(cover, show=show_cover)
 
     def set_cover_from_spotify(self, show_cover=True):
-        if not self.audiofile.get("APIC:"):
+        if not self.audiofile.get("APIC:Cover"):
             query = self._clean_query()
             _, _, _, cover = spotifyInfo.get_Track_Features(query)
             if cover:
@@ -95,7 +88,9 @@ class MP3Editor:
 
     def _clean_query(self):
         title = self.audiofile.get("TIT2").text[0] if self.audiofile.get("TIT2") else ""
-        artist = self.audiofile.get("TPE1").text[0] if self.audiofile.get("TPE1") else ""
+        artist = (
+            self.audiofile.get("TPE1").text[0] if self.audiofile.get("TPE1") else ""
+        )
         album = self.audiofile.get("TALB").text[0] if self.audiofile.get("TALB") else ""
 
         if title and title != "None":

@@ -29,9 +29,6 @@ def popup(caption, choice, call, topWidget):
     return menu_button([caption, "..."], open_menu)
 
 
-
-
-
 class CascadingBoxes(urwid.WidgetPlaceholder):
     max_box_levels = 4
     #
