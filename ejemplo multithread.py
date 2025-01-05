@@ -116,14 +116,14 @@ if __name__ == '__main__':
     stop_ev = threading.Event()
     message_q = queue.Queue()
 
-    threading.Thread(
-        target=update_time, args=[stop_ev, message_q],
-        name='update_time',
-    ).start()
-    threading.Thread(
-        target=update_song, args=[stop_ev, message_q],
-        name='update_song',
-    ).start()
+    # threading.Thread(
+    #     target=update_time, args=[stop_ev, message_q],
+    #     name='update_time',
+    # ).start()
+    # threading.Thread(
+    #     target=update_song, args=[stop_ev, message_q],
+    #     name='update_song',
+    # ).start()
 
     logging.info('start')
     Interface(message_q).loop.run()

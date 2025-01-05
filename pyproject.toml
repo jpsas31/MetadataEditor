@@ -16,6 +16,30 @@ pygame = "^2.6.1"
 yt-dlp = "^2024.12.23"
 
 
+
+[tool.pdm.build]
+includes = []
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[project]
+authors = [
+    {name = "Your Name", email = "you@example.com"},
+]
+requires-python = "<4.0,>=3.9"
+dependencies = [
+    "urwid",
+    "requests",
+    "pillow",
+    "spotipy",
+    "pygame<3.0.0,>=2.6.1",
+    "yt-dlp<2025.0.0,>=2024.12.23",
+    "python-dotenv>=1.0.1",
+    "mutagen>=1.47.0",
+]
+name = "metadataeditor"
+version = "0.1.0"
+description = ""
+readme = "README.md"

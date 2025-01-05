@@ -1,14 +1,14 @@
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import json
- 
+import os
+from dotenv import load_dotenv
 
-def get_Track_Features(query):
-    """
-    Searches the query with the spotify api and returns info form the response
-    """
-    CLIENT_ID = "b14d9be57f1e47798431d7f16dfa6c66"
-    CLIENT_SECRET = "fd9582b088b2445b8efcf83111dc72bd"
+load_dotenv()
+CLIENT_ID = os.getenv('CLIENT_ID')
+CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+
+def get_Track_Features(query): 
     client_credentials_manager =SpotifyClientCredentials(
             client_id=CLIENT_ID,
             client_secret=CLIENT_SECRET)
@@ -23,9 +23,7 @@ def get_Track_Features(query):
     album = meta['album']['name']
     artist = meta['album']['artists'][0]['name']
     cover=meta['album']['images'][0]['url']
-    # release_date = meta['album']['release_date']
-    # length = meta['duration_ms']
-    # popularity = meta['popularity']
+   
     with open('data2.json', 'a') as outfile:
         json.dump([name,artist,album],outfile)
     return name,artist,album,cover

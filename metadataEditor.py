@@ -1,91 +1,101 @@
-import urwid
-import tagModifier
 import os
-import eyed3
+
+import mutagen
+import urwid
+
+import tagModifier
 from singleton import BorgSingleton
+
 state = BorgSingleton()
+
 
 class MetadaEditor(urwid.Pile):
     def __init__(self, lista, focus_item=None):
         self.lista = lista
         title, album, artist, albumArt = state.viewInfo.songInfo(0)
-        super().__init__( [
-            urwid.AttrMap(urwid.Text(str("File Name"), align="center"), "Title"),
-            urwid.Text(state.viewInfo.songFileName(0), align="center"),
-            urwid.AttrMap(urwid.Text(str("Title"), align="center"), "Title"),
-            urwid.Edit(
-                caption="",
-                edit_text=str(title),
-                multiline=False,
-                align="center",
-                wrap="space",
-                allow_tab=False,
-                edit_pos=None,
-                layout=None,
-                mask=None,
-            ),
-            urwid.AttrMap(urwid.Text(str("Album"), align="center"), "Title"),
-            urwid.Edit(
-                caption="",
-                edit_text=str(album),
-                multiline=False,
-                align="center",
-                wrap="space",
-                allow_tab=False,
-                edit_pos=None,
-                layout=None,
-                mask=None,
-            ),
-            urwid.AttrMap(urwid.Text(str("Artist"), align="center"), "Title"),
-            urwid.Edit(
-                caption="",
-                edit_text=str(artist),
-                multiline=False,
-                align="center",
-                wrap="space",
-                allow_tab=False,
-                edit_pos=None,
-                layout=None,
-                mask=None,
-            ),
-            urwid.AttrMap(urwid.Button(albumArt), None, focus_map="reversed"),
-            urwid.AttrMap(urwid.Button("Ver Cover"), None, focus_map="reversed"),
-            urwid.AttrMap(
-                urwid.Button("Llenar Campos automaticamente"),
-                None,
-                focus_map="reversed",
-            ),
-            urwid.AttrMap(
-                urwid.Button("Llenar los campos de todas las canciones"),
-                None,
-                focus_map="reversed",
-            ),
-        ])
+        super().__init__(
+            [
+                urwid.AttrMap(urwid.Text(str("File Name"), align="center"), "Title"),
+                urwid.Text(state.viewInfo.songFileName(0), align="center"),
+                urwid.AttrMap(urwid.Text(str("Title"), align="center"), "Title"),
+                urwid.Edit(
+                    caption="",
+                    edit_text=str(title),
+                    multiline=False,
+                    align="center",
+                    wrap="space",
+                    allow_tab=False,
+                    edit_pos=None,
+                    layout=None,
+                    mask=None,
+                ),
+                urwid.AttrMap(urwid.Text(str("Album"), align="center"), "Title"),
+                urwid.Edit(
+                    caption="",
+                    edit_text=str(album),
+                    multiline=False,
+                    align="center",
+                    wrap="space",
+                    allow_tab=False,
+                    edit_pos=None,
+                    layout=None,
+                    mask=None,
+                ),
+                urwid.AttrMap(urwid.Text(str("Artist"), align="center"), "Title"),
+                urwid.Edit(
+                    caption="",
+                    edit_text=str(artist),
+                    multiline=False,
+                    align="center",
+                    wrap="space",
+                    allow_tab=False,
+                    edit_pos=None,
+                    layout=None,
+                    mask=None,
+                ),
+                urwid.AttrMap(urwid.Button(albumArt), None, focus_map="reversed"),
+                urwid.AttrMap(urwid.Button("Ver Cover"), None, focus_map="reversed"),
+                urwid.AttrMap(
+                    urwid.Button("Llenar Campos automaticamente"),
+                    None,
+                    focus_map="reversed",
+                ),
+                urwid.AttrMap(
+                    urwid.Button("Llenar los campos de todas las canciones"),
+                    None,
+                    focus_map="reversed",
+                ),
+            ]
+        )
         urwid.connect_signal(self.contents[3][0], "change", self.editHandler)
         urwid.connect_signal(self.contents[5][0], "change", self.editHandler)
         urwid.connect_signal(self.contents[7][0], "change", self.editHandler)
-        urwid.connect_signal(self.contents[8][0].original_widget, "click", self.setCover)
-        urwid.connect_signal(self.contents[9][0].original_widget, "click", self.verCover)
+        urwid.connect_signal(
+            self.contents[8][0].original_widget, "click", self.setCover
+        )
+        urwid.connect_signal(
+            self.contents[9][0].original_widget, "click", self.verCover
+        )
         urwid.connect_signal(
             self.contents[10][0].original_widget, "click", self.llenarCampos
         )
         urwid.connect_signal(
             self.contents[11][0].original_widget, "click", self.automatiCover
         )
-        
-    def verCover(self, widget=None):
 
+    def verCover(self, widget=None):
         fileName = state.viewInfo.canciones[self.lista.focus_position]
         tagModifier.verCover(fileName)
 
     def setCover(self, wid=None, fileName=None):
         if fileName is None:
             fileName = state.viewInfo.canciones[self.lista.focus_position]
-        audiofile = eyed3.load(state.viewInfo.canciones[self.lista.focus_position])
+        audiofile = mutagen.File(state.viewInfo.canciones[self.lista.focus_position])
         if len(audiofile.tag.images) == 0:
-
             tagModifier.setCover(state.viewInfo.getDir(), fileName)
-            audiofile = eyed3.load(state.viewInfo.canciones[self.lista.focus_position])
+            audiofile = mutagen.File(
+                state.viewInfo.canciones[self.lista.focus_position]
+            )
             if wid is not None:
                 if len(audiofile.tag.images) == 0:
                     wid.set_label("Cover no encontrada")
@@ -96,10 +106,11 @@ class MetadaEditor(urwid.Pile):
             tagModifier.removeAlbumCover(fileName)
             if wid is not None:
                 wid.set_label("Cover eliminada")
-                
+
     def editHandler(self, widget, text):
+        print(text)
         if os.path.isfile(state.viewInfo.songFileName(self.lista.focus_position)):
-            audiofile = eyed3.load(
+            audiofile = mutagen.File(
                 state.viewInfo.songFileName(self.lista.focus_position)
             )
         else:
@@ -143,9 +154,8 @@ class MetadaEditor(urwid.Pile):
                     tagModifier.changeArtist(
                         textoInfo, state.viewInfo.canciones[self.lista.focus_position]
                     )
-        
-    def llenarCampos(self, widget=None, fileName=None):
 
+    def llenarCampos(self, widget=None, fileName=None):
         if fileName is None:
             fileName = state.viewInfo.songFileName(self.lista.focus_position)
         tagModifier.llenarCampos(state.viewInfo.getDir(), fileName)
@@ -162,9 +172,8 @@ class MetadaEditor(urwid.Pile):
             self.contents[-2][0].original_widget.set_label(
                 "No se encontro la informacion"
             )
+
     def automatiCover(self, **widget):
         for i in range(state.viewInfo.songsLen()):
             fileName = state.viewInfo.songFileName(i)
             tagModifier.llenarCampos(state.viewInfo.getDir(), fileName, show=False)
-
-    

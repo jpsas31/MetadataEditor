@@ -26,7 +26,7 @@ class ViewInfo:
             cancion = ""
         else:
             cancion = self.canciones[index]
-        return tagModifier.songInfo(cancion)
+        return tagModifier.MP3Editor(cancion).song_info()
 
     def songFileName(self, index):
         if len(self.canciones) > 0:

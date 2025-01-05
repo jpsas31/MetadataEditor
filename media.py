@@ -1,90 +1,53 @@
+from os import environ
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame.mixer
-from datetime import timedelta
-import urwid
-from threading import Event
 from singleton import BorgSingleton
 
-
-state = BorgSingleton()
-state.stop_event = Event()
-paused = False
-current_sound = None
-sound_length = 0
-play_position = 0 
-
-
-pygame.mixer.init()
-
-def setMedia(fileName):
-    """
-    Load a new sound file and play it.
-    """
-    global current_sound, sound_length, play_position
-
-    if not pygame.mixer.get_init():
+class AudioPlayer:
+    def __init__(self):
+        self.state = BorgSingleton()
+        self.paused = False
+        self.current_sound = None
+        self.sound_length = 0
+        self.play_position = 0
         pygame.mixer.init()
 
-    pygame.mixer.music.load(fileName)
-    current_sound =pygame.mixer.music
-    sound_length = pygame.mixer.Sound(fileName).get_length() * 1000
-    play_position = 0 
-    current_sound.play()
+    def set_media(self, file_name):
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
 
-def resume_pause():  
-    global play_position
-    if current_sound.get_busy():
-        play_position = pygame.mixer.music.get_pos()
-        current_sound.pause()
-    else:
-        current_sound.unpause()
+        pygame.mixer.music.load(file_name)
+        self.current_sound = pygame.mixer.music
+        self.sound_length = pygame.mixer.Sound(file_name).get_length() * 1000
+        self.play_position = 0
+        self.current_sound.play()
 
+    def resume_pause(self):
+        if self.current_sound is None:
+            return 
+        
+        if self.current_sound.get_busy():
+            self.play_position = pygame.mixer.music.get_pos()
+            self.current_sound.pause()
+        else:
+            self.current_sound.unpause()
 
-class MediaProgressBar(urwid.ProgressBar):
-    def __init__(self, normal, complete, current=0, done=100, satt=None):
-        super().__init__(normal, complete, current, done, satt)
+    def get_play_position(self):
+        
+        return pygame.mixer.music.get_pos()
 
-    def setDone(self, done):
-        """
-        Set the progress bar's total duration.
-        """
-        if done == 0:
-            done = 1
-        self.done = done
+    def is_playing(self):
+        if self.current_sound is None:
+            return False
+        
+        return self.current_sound.get_busy()
 
-    def get_text(self):
-        """
-        Return the progress time in MM:SS format.
-        """
-        timeString = str(timedelta(milliseconds=int(self.current)))
-        if timeString[0] == '0':
-            return timeString[timeString.find(':') + 1:]
-        return timeString
+    def stop(self):
+        pygame.mixer.music.stop()
 
-    def threadPlay(self):
-        """
-        Continuously update the progress bar while playing.
-        """
-        global play_position
-        while not state.stop_event.wait(timeout=1.0):
-            if current_sound:
-                self.setDone(sound_length)
-                play_position = pygame.mixer.music.get_pos()
-                self.set_completion(play_position)
-                if play_position >= sound_length:
-                    # Reset if playback ends
-                    self.setDone(0)
-                    self.set_completion(0)
-
-class Footer(urwid.Pile):
-    def __init__(self) -> None:
-        self.musicBar = MediaProgressBar("normal", "complete")
-        super().__init__([
-            urwid.AttrMap(
-                urwid.Text(
-                    "",
-                    align="center",
-                ),
-                "Title",
-            ),
-            self.musicBar,
-        ])
+    
+    def thread_play(self, update_position):
+        while not self.state.stop_event.is_set():
+            if self.is_playing():
+                update_position(self.sound_length, self.get_play_position())
+        pygame.mixer.quit()   

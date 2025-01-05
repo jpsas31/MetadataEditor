@@ -1,7 +1,6 @@
 import os
 import threading
 
-import eyed3
 import urwid
 
 import tagModifier
@@ -10,10 +9,12 @@ from singleton import BorgSingleton
 
 state = BorgSingleton()
 
-
 class MetadaEditor(CascadingBoxes):
-    def __init__(self, lista, topWidgetName, focus_item=None):
+    def __init__(self, lista, topWidgetName):
         self.lista = lista
+        self.modifier = tagModifier.MP3Editor(
+            state.viewInfo.songFileName(self.lista.focus_position)
+        )
         title, album, artist, albumArt = state.viewInfo.songInfo(0)
         self.fillProgress = urwid.ProgressBar("normal", "complete")
         super().__init__(
@@ -93,34 +94,38 @@ class MetadaEditor(CascadingBoxes):
             self.contents[11].original_widget, "click", self.automatiCover
         )
 
+    def set_modifier(self, fileName=None):
+        if fileName is None:
+            fileName = state.viewInfo.canciones[self.lista.focus_position]
+        if self.modifier.file_path != fileName:
+            self.modifier = tagModifier.MP3Editor(fileName)
+
     def verCover(self, widget=None):
-        fileName = state.viewInfo.canciones[self.lista.focus_position]
-        tagModifier.verCover(fileName)
+        self.set_modifier()
+        self.modifier.show_album_cover()
 
     def setCover(self, wid=None, fileName=None):
         if fileName is None:
             fileName = state.viewInfo.canciones[self.lista.focus_position]
-        audiofile = eyed3.load(state.viewInfo.canciones[self.lista.focus_position])
-        if len(audiofile.tag.images) == 0:
-            tagModifier.setCover(state.viewInfo.getDir(), fileName)
-            audiofile = eyed3.load(state.viewInfo.canciones[self.lista.focus_position])
+        self.set_modifier()
+        title, album, artist, albumArt = self.modifier.song_info()
+        if len(albumArt) == 0:
+            self.modifier.set_cover_from_spotify(state.viewInfo.getDir(), fileName)
+            title, album, artist, albumArt = self.modifier.song_info()
+
             if wid is not None:
-                if len(audiofile.tag.images) == 0:
+                if len(albumArt) == 0:
                     wid.set_label("Cover no encontrada")
                 else:
                     wid.set_label("Cover asignada")
 
         else:
-            tagModifier.removeAlbumCover(fileName)
+            self.modifier.remove_album_cover()
             if wid is not None:
                 wid.set_label("Cover eliminada")
 
     def editHandler(self, widget, text):
-        if os.path.isfile(state.viewInfo.songFileName(self.lista.focus_position)):
-            audiofile = eyed3.load(
-                state.viewInfo.songFileName(self.lista.focus_position)
-            )
-        else:
+        if not os.path.isfile(state.viewInfo.songFileName(self.lista.focus_position)):
             return
         indexWidget = -1
 
@@ -129,43 +134,22 @@ class MetadaEditor(CascadingBoxes):
                 indexWidget = j
                 break
 
-        textoInfo = self.contents[indexWidget].get_edit_text()
+        modifier = tagModifier.MP3Editor(
+            state.viewInfo.songFileName(self.lista.focus_position)
+        )
+       
         if indexWidget == 3:
-            if str(audiofile.tag.title) != text:
-                if len(textoInfo) <= 1:
-                    tagModifier.changeTitle(
-                        "", state.viewInfo.canciones[self.lista.focus_position]
-                    )
-                else:
-                    tagModifier.changeTitle(
-                        textoInfo, state.viewInfo.canciones[self.lista.focus_position]
-                    )
+            modifier.change_title(text)
         elif indexWidget == 5:
-            if str(audiofile.tag.album) != text:
-                if len(textoInfo) <= 1:
-                    tagModifier.changeAlbum(
-                        "", state.viewInfo.canciones[self.lista.focus_position]
-                    )
-                else:
-                    tagModifier.changeAlbum(
-                        textoInfo, state.viewInfo.canciones[self.lista.focus_position]
-                    )
-
+            modifier.change_album(text)
         elif indexWidget == 7:
-            if str(audiofile.tag.artist) != text:
-                if len(textoInfo) <= 1:
-                    tagModifier.changeArtist(
-                        "", state.viewInfo.canciones[self.lista.focus_position]
-                    )
-                else:
-                    tagModifier.changeArtist(
-                        textoInfo, state.viewInfo.canciones[self.lista.focus_position]
-                    )
+            modifier.change_artist(text)
 
     def llenarCampos(self, widget=None, fileName=None):
         if fileName is None:
             fileName = state.viewInfo.songFileName(self.lista.focus_position)
-        tagModifier.llenarCampos(state.viewInfo.getDir(), fileName)
+        self.set_modifier(fileName)
+        self.modifier.fill_metadata_from_spotify()
         title, album, artist, albumArt = state.viewInfo.songInfo(
             self.lista.focus_position
         )
@@ -185,7 +169,8 @@ class MetadaEditor(CascadingBoxes):
         size = state.viewInfo.songsLen()
         for i in range(size):
             fileName = state.viewInfo.songFileName(i)
-            tagModifier.llenarCampos(state.viewInfo.getDir(), fileName, show=False)
+            self.set_modifier(fileName)
+            self.modifier.fill_metadata_from_spotify(show_cover=False)
             self.fillProgress.current += 100 / size
         self.original_widget = self.original_widget[0]
         self.box_level -= 1

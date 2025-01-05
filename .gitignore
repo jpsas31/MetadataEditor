@@ -2,3 +2,9 @@ __pycache__
 config.code-workspace
 tempCodeRunnerFile.py
 Pipfile.lock
+.env
+.venv
+.pdm-build
+.cache
+album
+*.mp3
