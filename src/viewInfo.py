@@ -1,7 +1,9 @@
-import tagModifier
 import os
+
+import src.tagModifier as tagModifier
+
+
 class ViewInfo:
-    
     def __init__(self, dir):
         self.dir = dir
         tagModifier.dir = dir

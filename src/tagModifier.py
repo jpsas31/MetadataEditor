@@ -6,7 +6,7 @@ import requests
 from mutagen.id3 import APIC, ID3, TALB, TIT2, TPE1
 from PIL import Image, ImageFile
 
-import spotifyInfo
+import src.spotifyInfo as spotifyInfo
 
 
 class MP3Editor:

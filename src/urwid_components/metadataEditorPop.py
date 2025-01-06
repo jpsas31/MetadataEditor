@@ -3,10 +3,10 @@ import threading
 
 import urwid
 
-import tagModifier
-from editorBox import EditorBox
-from popupMenu import CascadingBoxes, popup
-from singleton import BorgSingleton
+import src.tagModifier as tagModifier
+from src.singleton import BorgSingleton
+from src.urwid_components.editorBox import EditorBox
+from src.urwid_components.popupMenu import CascadingBoxes, popup
 
 state = BorgSingleton()
 
@@ -45,7 +45,6 @@ class MetadataEditor(CascadingBoxes):
 
     def _create_title_widget(self, text):
         return urwid.AttrMap(urwid.Text(text, align="center"), "Title")
-        # return urwid.AttrMap(EditorBox(text, align="center"), "Title")
 
     def _create_text_widget(self, text):
         return urwid.Text(text, align="center")
@@ -59,11 +58,13 @@ class MetadataEditor(CascadingBoxes):
             wrap="space",
             allow_tab=False,
             tag=tag,
-            modifier=self.get_modifier
+            modifier=self.get_modifier,
         )
+
     def get_modifier(self):
         self._update_modifier()
         return self.modifier
+
     def _create_button(self, label, callback):
         return urwid.AttrMap(
             urwid.Button(label, on_press=callback), None, focus_map="reversed"
@@ -122,12 +123,6 @@ class MetadataEditor(CascadingBoxes):
             self.modifier.change_album(textoInfo)
         elif widget_index == 7:
             self.modifier.change_artist(textoInfo)
-        # if widget_index == 3:
-        #     self.modifier.change_title(text)
-        # elif widget_index == 5:
-        #     self.modifier.change_album(text)
-        # elif widget_index == 7:
-        #     self.modifier.change_artist(text)
 
     def fill_fields(self, _widget=None, file_name=None):
         self._update_modifier(file_name)
@@ -147,7 +142,6 @@ class MetadataEditor(CascadingBoxes):
             self.modifier.fill_metadata_from_spotify(show_cover=False)
 
             with lock:
-                # self.fill_progress.current += 100 / size
                 self.fill_progress.set_completion(100 / size)
 
         self.original_widget = self.original_widget[0]

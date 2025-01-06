@@ -8,3 +8,4 @@ Pipfile.lock
 .cache
 album
 *.mp3
+testMusic

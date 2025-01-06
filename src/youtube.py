@@ -1,6 +1,6 @@
 import yt_dlp
 
-from singleton import BorgSingleton
+from src.singleton import BorgSingleton
 
 state = BorgSingleton()
 

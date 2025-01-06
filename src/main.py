@@ -6,12 +6,12 @@ from queue import Queue
 
 import urwid
 
-import metadataEditorPop
-import viewInfo
-from media import AudioPlayer
-from mediaControls import Footer
-from singleton import BorgSingleton
-from youtube import Youtube
+import src.urwid_components.metadataEditorPop as metadataEditorPop
+import src.viewInfo as viewInfo
+from src.media import AudioPlayer
+from src.urwid_components.mediaControls import Footer
+from src.singleton import BorgSingleton
+from src.youtube import Youtube
 
 state = BorgSingleton()
 
@@ -198,11 +198,11 @@ class Display:
 
 
 def main():
-    # if len(sys.argv) <= 1:
-    #     raise Warning("Provide a valid dir")
-    # else:
-    #     dir = sys.argv[1]
-    dir="."
+    if len(sys.argv) <= 1:
+        raise Warning("Provide a valid dir")
+    else:
+        dir = sys.argv[1]
+    # dir="."
     message_q = Queue()
     state.stop_event = threading.Event()
     state.viewInfo = viewInfo.ViewInfo(dir)
