@@ -4,6 +4,7 @@ import threading
 import urwid
 
 import tagModifier
+from editorBox import EditorBox
 from popupMenu import CascadingBoxes, popup
 from singleton import BorgSingleton
 
@@ -23,11 +24,11 @@ class MetadataEditor(CascadingBoxes):
             self._create_title_widget("File Name"),
             self._create_text_widget(state.viewInfo.songFileName(0)),
             self._create_title_widget("Title"),
-            self._create_edit_widget(""),
+            self._create_edit_widget("", "title"),
             self._create_title_widget("Album"),
-            self._create_edit_widget(""),
+            self._create_edit_widget("", "album"),
             self._create_title_widget("Artist"),
-            self._create_edit_widget(""),
+            self._create_edit_widget("", "artist"),
             self._create_button("Set Cover", self.set_cover),
             self._create_button("View Cover", self.view_cover),
             self._create_button("Auto-fill Fields", self.fill_fields),
@@ -39,25 +40,30 @@ class MetadataEditor(CascadingBoxes):
             ),
         ]
 
-        self._connect_signals()
+        # self._connect_signals()
         self._update_ui_with_metadata(state.viewInfo.songFileName(0))
 
     def _create_title_widget(self, text):
         return urwid.AttrMap(urwid.Text(text, align="center"), "Title")
+        # return urwid.AttrMap(EditorBox(text, align="center"), "Title")
 
     def _create_text_widget(self, text):
         return urwid.Text(text, align="center")
 
-    def _create_edit_widget(self, initial_text):
-        return urwid.Edit(
+    def _create_edit_widget(self, initial_text, tag):
+        return EditorBox(
             caption="",
             edit_text=initial_text,
             multiline=False,
             align="center",
             wrap="space",
             allow_tab=False,
+            tag=tag,
+            modifier=self.get_modifier
         )
-
+    def get_modifier(self):
+        self._update_modifier()
+        return self.modifier
     def _create_button(self, label, callback):
         return urwid.AttrMap(
             urwid.Button(label, on_press=callback), None, focus_map="reversed"
@@ -83,9 +89,7 @@ class MetadataEditor(CascadingBoxes):
         self.contents[3].set_edit_text(title or "")
         self.contents[5].set_edit_text(album or "")
         self.contents[7].set_edit_text(artist or "")
-        self.contents[8].original_widget.set_label(
-            "Has cover" if album_art else "No Cover"
-        )
+        self.contents[8].original_widget.set_label(album_art)
 
     def view_cover(self, _widget=None):
         self._update_modifier()
@@ -95,15 +99,13 @@ class MetadataEditor(CascadingBoxes):
         self._update_modifier(file_name)
         title, album, artist, album_art = self.modifier.song_info()
 
-        if album_art:
+        if album_art == "Has cover":
             self.modifier.remove_album_cover()
             self.contents[8].original_widget.set_label("Cover Removed")
         else:
             self.modifier.set_cover_from_spotify(state.viewInfo.getDir(), file_name)
             _, _, _, album_art = self.modifier.song_info()
-            self.contents[8].original_widget.set_label(
-                "Cover Set" if album_art else "Cover Not Found"
-            )
+            self.contents[8].original_widget.set_label(album_art)
 
     def edit_handler(self, widget, text):
         file_name = state.viewInfo.songFileName(self.song_list.focus_position)
@@ -113,12 +115,19 @@ class MetadataEditor(CascadingBoxes):
         self._update_modifier(file_name)
         widget_index = self.contents.index(widget)
 
+        textoInfo = self.contents[widget_index].get_edit_text()
         if widget_index == 3:
-            self.modifier.change_title(text)
+            self.modifier.change_title(textoInfo)
         elif widget_index == 5:
-            self.modifier.change_album(text)
+            self.modifier.change_album(textoInfo)
         elif widget_index == 7:
-            self.modifier.change_artist(text)
+            self.modifier.change_artist(textoInfo)
+        # if widget_index == 3:
+        #     self.modifier.change_title(text)
+        # elif widget_index == 5:
+        #     self.modifier.change_album(text)
+        # elif widget_index == 7:
+        #     self.modifier.change_artist(text)
 
     def fill_fields(self, _widget=None, file_name=None):
         self._update_modifier(file_name)
@@ -138,7 +147,8 @@ class MetadataEditor(CascadingBoxes):
             self.modifier.fill_metadata_from_spotify(show_cover=False)
 
             with lock:
-                self.fill_progress.current += 100 / size
+                # self.fill_progress.current += 100 / size
+                self.fill_progress.set_completion(100 / size)
 
         self.original_widget = self.original_widget[0]
         self.box_level -= 1

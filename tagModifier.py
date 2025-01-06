@@ -14,16 +14,16 @@ class MP3Editor:
         self.file_path = file_path
         self.audiofile = ID3(file_path)
 
-    def change_artist(self, name):
-        self.audiofile.add(TPE1(encoding=3, text=name))
+    def change_artist(self, text):
+        self.audiofile.add(TPE1(encoding=3, text=text))
         self.audiofile.save()
 
-    def change_title(self, name):
-        self.audiofile.add(TIT2(encoding=3, text=name))
+    def change_title(self, text):
+        self.audiofile.add(TIT2(encoding=3, text=text))
         self.audiofile.save()
 
-    def change_album(self, name):
-        self.audiofile.add(TALB(encoding=3, text=name))
+    def change_album(self, text):
+        self.audiofile.add(TALB(encoding=3, text=text))
         self.audiofile.save()
 
     def add_album_cover(self, image_link, show=False):
@@ -61,7 +61,7 @@ class MP3Editor:
             self.audiofile.get("TPE1").text[0] if self.audiofile.get("TPE1") else ""
         )
         album_art = False if self.audiofile.get("APIC:Cover") == "" else True
-
+        album_art = "Has cover" if album_art else "No Cover"
         return title, album, artist, album_art
 
     def fill_metadata_from_spotify(self, show_cover=True):
@@ -69,10 +69,13 @@ class MP3Editor:
         title, artist, album, cover = spotifyInfo.get_Track_Features(query)
 
         if title:
+            # title = ""
             self.audiofile.add(TIT2(encoding=3, text=title))
         if artist:
+            # artist = ""
             self.audiofile.add(TPE1(encoding=3, text=artist))
         if album:
+            # album = ""
             self.audiofile.add(TALB(encoding=3, text=album))
         self.audiofile.save()
 

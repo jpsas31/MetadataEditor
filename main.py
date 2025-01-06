@@ -97,7 +97,7 @@ class Display:
         for song in new_songs:
             state.viewInfo.addSong(song)
             button = urwid.Button(song)
-            urwid.connect_signal(button, "click", self.change_focus, song)
+            urwid.connect_signal(button, "click", self.change_focus,  user_args=[song])
             self.walker.append(urwid.AttrMap(button, None, focus_map="reversed"))
 
         removed_songs = [
@@ -198,11 +198,11 @@ class Display:
 
 
 def main():
-    if len(sys.argv) <= 1:
-        raise Warning("Provide a valid dir")
-    else:
-        dir = sys.argv[1]
-
+    # if len(sys.argv) <= 1:
+    #     raise Warning("Provide a valid dir")
+    # else:
+    #     dir = sys.argv[1]
+    dir="."
     message_q = Queue()
     state.stop_event = threading.Event()
     state.viewInfo = viewInfo.ViewInfo(dir)
