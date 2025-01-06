@@ -1,5 +1,9 @@
 import urwid
 
+from src.singleton import BorgSingleton
+
+state = BorgSingleton()
+
 
 class EditorBox(urwid.Edit):
     def __init__(

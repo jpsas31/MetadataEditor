@@ -1,7 +1,7 @@
 from os import environ
 environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame.mixer
-from singleton import BorgSingleton
+from src.singleton import BorgSingleton
 
 class AudioPlayer:
     def __init__(self):

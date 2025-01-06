@@ -1,5 +1,6 @@
 __pycache__
 config.code-workspace
+.DS_Store
 tempCodeRunnerFile.py
 Pipfile.lock
 .env
@@ -8,3 +9,4 @@ Pipfile.lock
 .cache
 album
 *.mp3
+testMusic

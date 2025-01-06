@@ -38,6 +38,7 @@ dependencies = [
     "yt-dlp<2025.0.0,>=2024.12.23",
     "python-dotenv>=1.0.1",
     "mutagen>=1.47.0",
+    "climage>=0.2.2",
 ]
 name = "metadataeditor"
 version = "0.1.0"

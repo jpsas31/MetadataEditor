@@ -6,7 +6,7 @@ import requests
 from mutagen.id3 import APIC, ID3, TALB, TIT2, TPE1
 from PIL import Image, ImageFile
 
-import spotifyInfo
+import src.spotifyInfo as spotifyInfo
 
 
 class MP3Editor:
@@ -49,6 +49,12 @@ class MP3Editor:
             with Image.open(BytesIO(apic_frame.data)) as img:
                 ImageFile.LOAD_TRUNCATED_IMAGES = True
                 img.show()
+
+    def get_cover(self):
+        apic_frame = self.audiofile.get("APIC:Cover")
+        if apic_frame:
+            return Image.open(BytesIO(apic_frame.data))
+        return None
 
     def remove_album_cover(self):
         self.audiofile.delall("APIC:Cover")
