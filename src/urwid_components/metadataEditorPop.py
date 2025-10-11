@@ -135,6 +135,9 @@ class MetadataEditor(CascadingBoxes):
                 _, _, _, album_art = self.modifier.song_info()
                 if len(self.contents) > 8:
                     self.contents[8].original_widget.set_label(album_art)
+
+            # Invalidate cache after cover change
+            state.viewInfo.invalidate_cache(self.modifier.file_path)
         except Exception as e:
             print(f"Error setting cover: {e}")
 
@@ -157,6 +160,9 @@ class MetadataEditor(CascadingBoxes):
                 self.modifier.change_album(textoInfo)
             elif widget_index == 7:
                 self.modifier.change_artist(textoInfo)
+
+            # Invalidate metadata cache after edit
+            state.viewInfo.invalidate_cache(file_name)
         except Exception:
             # Silently handle errors to avoid crashing the UI
             pass
@@ -166,6 +172,8 @@ class MetadataEditor(CascadingBoxes):
             self._update_modifier(file_name)
             self.modifier.fill_metadata_from_spotify()
             self._update_ui_with_metadata(self.modifier.file_path)
+            # Invalidate cache after filling metadata
+            state.viewInfo.invalidate_cache(self.modifier.file_path)
         except Exception:
             # Silently handle errors to avoid crashing the UI
             pass
@@ -182,6 +190,9 @@ class MetadataEditor(CascadingBoxes):
                     file_name = state.viewInfo.songFileName(i)
                     self._update_modifier(file_name)
                     self.modifier.fill_metadata_from_spotify(show_cover=False)
+
+                    # Invalidate cache after updating metadata
+                    state.viewInfo.invalidate_cache(file_name)
 
                     # Calculate progress correctly: (current + 1) * 100 / total
                     progress = ((i + 1) * 100) / size

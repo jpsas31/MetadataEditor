@@ -23,6 +23,7 @@ class Display:
     ]
 
     def __init__(self, change_view, audio_player=None):
+        self._widget_map = {}  # Map song names to widgets for O(1) lookup - must be first!
         self.walker = urwid.SimpleListWalker(self._generate_menu())
         self.song_list = ListMod(self.walker, self, change_view)
         self.metadata_editor = MetadataEditor(self.song_list, "pilaMetadata")
@@ -65,17 +66,20 @@ class Display:
             state.viewInfo.addSong(song)
             button = urwid.Button(song)
             urwid.connect_signal(button, "click", self.change_focus, user_args=[song])
-            self.walker.append(urwid.AttrMap(button, None, focus_map="reversed"))
+            widget = urwid.AttrMap(button, None, focus_map="reversed")
+            self.walker.append(widget)
+            # Store in widget map for fast lookup
+            self._widget_map[song] = widget
 
         removed_songs = [
             song for song in state.viewInfo.canciones if song not in current_songs
         ]
         for song in removed_songs:
             state.viewInfo.deleteSong(song)
-            for widget in self.walker:
-                if widget.original_widget.get_label() == song:
-                    self.walker.remove(widget)
-                    break
+            # Use widget map for O(1) lookup instead of O(n) loop
+            if song in self._widget_map:
+                self.walker.remove(self._widget_map[song])
+                del self._widget_map[song]
 
     def _generate_menu(self):
         """Generate the initial menu of songs."""
@@ -86,7 +90,10 @@ class Display:
             urwid.connect_signal(
                 button, "click", self.change_focus, user_args=[song_name]
             )
-            body.append(urwid.AttrMap(button, None, focus_map="reversed"))
+            widget = urwid.AttrMap(button, None, focus_map="reversed")
+            body.append(widget)
+            # Store in widget map for fast lookup
+            self._widget_map[song_name] = widget
         return body
 
     def change_focus(self, button, song_name):
