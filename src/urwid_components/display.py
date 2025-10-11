@@ -22,14 +22,15 @@ class Display:
         ("complete", "black", "dark magenta"),
     ]
 
-    def __init__(self, change_view):
+    def __init__(self, change_view, audio_player=None):
         self.walker = urwid.SimpleListWalker(self._generate_menu())
         self.song_list = ListMod(self.walker, self, change_view)
         self.metadata_editor = MetadataEditor(self.song_list, "pilaMetadata")
 
         state.pilaMetadata = self.metadata_editor
 
-        self.audio_player = AudioPlayer()
+        # Use shared audio player if provided, otherwise create new one
+        self.audio_player = audio_player if audio_player is not None else AudioPlayer()
         self.footer = Footer()
         self.info_panel = urwid.LineBox(self.metadata_editor, "Info")
 
@@ -90,4 +91,13 @@ class Display:
 
     def change_focus(self, button, song_name):
         """Change focus between the song list and the main panel."""
+        # Find the song index and update metadata
+        for i in range(state.viewInfo.songsLen()):
+            if state.viewInfo.songFileName(i) == song_name:
+                title, album, artist, album_art = state.viewInfo.songInfo(i)
+                self.song_list._update_metadata_panel(
+                    i, title, album, artist, album_art
+                )
+                break
+
         self.columns.focus_col = 1 if self.columns.focus_col == 0 else 0

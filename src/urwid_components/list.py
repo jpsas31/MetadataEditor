@@ -47,8 +47,9 @@ class ListMod(urwid.ListBox):
 
     def _delete_song(self, pos):
         file_name = state.viewInfo.songFileName(pos)
-        os.remove(file_name)
-        self.display._update_song_list()
+        if os.path.isfile(file_name):
+            os.remove(file_name)
+            self.display._update_song_list()
 
     def _play_song(self, pos):
         file_name = state.viewInfo.songFileName(pos)
@@ -56,10 +57,19 @@ class ListMod(urwid.ListBox):
         self.display.footer.set_text(file_name)
 
     def _update_metadata_panel(self, pos, title, album, artist, album_art):
-        self.display.metadata_editor.contents[1].set_text(
-            state.viewInfo.songFileName(pos)
-        )
-        self.display.metadata_editor.contents[3].set_edit_text(title)
-        self.display.metadata_editor.contents[5].set_edit_text(album)
-        self.display.metadata_editor.contents[7].set_edit_text(artist)
-        self.display.metadata_editor.contents[8].original_widget.set_label(album_art)
+        # Update the main metadata editor if it exists
+        if hasattr(self.display, "metadata_editor"):
+            self.display.metadata_editor.contents[1].set_text(
+                state.viewInfo.songFileName(pos)
+            )
+            self.display.metadata_editor.contents[3].set_edit_text(title)
+            self.display.metadata_editor.contents[5].set_edit_text(album)
+            self.display.metadata_editor.contents[7].set_edit_text(artist)
+            self.display.metadata_editor.contents[8].original_widget.set_label(
+                album_art
+            )
+
+        # Update the simple track info if it exists
+        if hasattr(self.display, "simple_track_info"):
+            song_filename = state.viewInfo.songFileName(pos)
+            self.display.simple_track_info.update_track(song_filename)

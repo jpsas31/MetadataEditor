@@ -40,3 +40,9 @@ class ViewInfo:
 
     def isSong(self, filename):
         return filename in self.canciones
+    
+    def getCurrentSong(self):
+        """Get the full path of the current/first song."""
+        if len(self.canciones) > 0:
+            return f"{self.dir}/{self.canciones[0]}"
+        return None

@@ -2,7 +2,7 @@ import os
 import threading
 
 import urwid
-from climage import convert, convert_pil
+from climage import convert_pil
 
 import src.tagModifier as tagModifier
 from src.singleton import BorgSingleton
@@ -47,11 +47,7 @@ class MetadataEditor(CascadingBoxes):
                 self.automatic_cover,
                 top_widget_name,
             ),
-            # urwid.AttrMap(self.get_cover(), "Title"),
         ]
-
-        # self._connect_signals()
-        # self._update_ui_with_metadata(state.viewInfo.songFileName(0))
 
     def _create_title_widget(self, text):
         return urwid.AttrMap(urwid.Text(text, align="center"), "Title")
@@ -72,11 +68,14 @@ class MetadataEditor(CascadingBoxes):
         )
 
     def get_cover(self):
-        img = self.modifier.get_cover()
-        if img is not None:
-            ansi = ANSIWidget(convert_pil(img, is_unicode=True, width=60))
-            body = urwid.Pile([ansi])
-            return body
+        try:
+            img = self.modifier.get_cover()
+            if img is not None:
+                ansi = ANSIWidget(convert_pil(img, is_unicode=True, width=60))
+                body = urwid.Pile([ansi])
+                return body
+        except Exception as e:
+            print(f"Error getting cover: {e}")
         return urwid.Filler(urwid.Text("No Album Cover Found"))
 
     def get_modifier(self):
@@ -100,70 +99,99 @@ class MetadataEditor(CascadingBoxes):
             self.modifier = tagModifier.MP3Editor(file_name)
 
     def _update_ui_with_metadata(self, file_name):
+        if self.song_list.focus_position >= state.viewInfo.songsLen():
+            return
+
         title, album, artist, album_art = state.viewInfo.songInfo(
             self.song_list.focus_position
         )
 
-        self.contents[1].set_text(file_name)
-        self.contents[3].set_edit_text(title or "")
-        self.contents[5].set_edit_text(album or "")
-        self.contents[7].set_edit_text(artist or "")
-        self.contents[8].original_widget.set_label(album_art)
-
-    def view_cover(self, _widget=None):
-        self._update_modifier()
-        self.modifier.show_album_cover()
-
-    def set_cover(self, _widget=None, file_name=None):
-        self._update_modifier(file_name)
-        title, album, artist, album_art = self.modifier.song_info()
-
-        if album_art == "Has cover":
-            self.modifier.remove_album_cover()
-            self.contents[8].original_widget.set_label("Cover Removed")
-        else:
-            self.modifier.set_cover_from_spotify(state.viewInfo.getDir(), file_name)
-            _, _, _, album_art = self.modifier.song_info()
+        # Ensure contents has enough elements before accessing
+        if len(self.contents) > 8:
+            self.contents[1].set_text(file_name)
+            self.contents[3].set_edit_text(title or "")
+            self.contents[5].set_edit_text(album or "")
+            self.contents[7].set_edit_text(artist or "")
             self.contents[8].original_widget.set_label(album_art)
 
+    def view_cover(self, _widget=None):
+        try:
+            self._update_modifier()
+            self.modifier.show_album_cover()
+        except Exception as e:
+            print(f"Error viewing cover: {e}")
+
+    def set_cover(self, _widget=None, file_name=None):
+        try:
+            self._update_modifier(file_name)
+            title, album, artist, album_art = self.modifier.song_info()
+
+            if album_art == "Has cover":
+                self.modifier.remove_album_cover()
+                if len(self.contents) > 8:
+                    self.contents[8].original_widget.set_label("Cover Removed")
+            else:
+                self.modifier.set_cover_from_spotify(show_cover=False)
+                _, _, _, album_art = self.modifier.song_info()
+                if len(self.contents) > 8:
+                    self.contents[8].original_widget.set_label(album_art)
+        except Exception as e:
+            print(f"Error setting cover: {e}")
+
     def edit_handler(self, widget, text):
-        file_name = state.viewInfo.songFileName(self.song_list.focus_position)
-        if not os.path.isfile(file_name):
-            return
+        try:
+            if self.song_list.focus_position >= state.viewInfo.songsLen():
+                return
 
-        self._update_modifier(file_name)
-        widget_index = self.contents.index(widget)
+            file_name = state.viewInfo.songFileName(self.song_list.focus_position)
+            if not os.path.isfile(file_name):
+                return
 
-        textoInfo = self.contents[widget_index].get_edit_text()
-        if widget_index == 3:
-            self.modifier.change_title(textoInfo)
-        elif widget_index == 5:
-            self.modifier.change_album(textoInfo)
-        elif widget_index == 7:
-            self.modifier.change_artist(textoInfo)
+            self._update_modifier(file_name)
+            widget_index = self.contents.index(widget)
+
+            textoInfo = self.contents[widget_index].get_edit_text()
+            if widget_index == 3:
+                self.modifier.change_title(textoInfo)
+            elif widget_index == 5:
+                self.modifier.change_album(textoInfo)
+            elif widget_index == 7:
+                self.modifier.change_artist(textoInfo)
+        except Exception:
+            # Silently handle errors to avoid crashing the UI
+            pass
 
     def fill_fields(self, _widget=None, file_name=None):
-        self._update_modifier(file_name)
-        self.modifier.fill_metadata_from_spotify()
-        self._update_ui_with_metadata(self.modifier.file_path)
+        try:
+            self._update_modifier(file_name)
+            self.modifier.fill_metadata_from_spotify()
+            self._update_ui_with_metadata(self.modifier.file_path)
+        except Exception:
+            # Silently handle errors to avoid crashing the UI
+            pass
 
     def automatic_cover(self, _widget=None):
         threading.Thread(target=self._automatic_cover, daemon=True).start()
 
     def _automatic_cover(self):
-        lock = threading.Lock()
-        size = state.viewInfo.songsLen()
+        try:
+            size = state.viewInfo.songsLen()
 
-        for i in range(size):
-            file_name = state.viewInfo.songFileName(i)
-            self._update_modifier(file_name)
-            self.modifier.fill_metadata_from_spotify(show_cover=False)
+            for i in range(size):
+                try:
+                    file_name = state.viewInfo.songFileName(i)
+                    self._update_modifier(file_name)
+                    self.modifier.fill_metadata_from_spotify(show_cover=False)
 
-            with lock:
-                self.fill_progress.set_completion(100 / size)
+                    # Calculate progress correctly: (current + 1) * 100 / total
+                    progress = ((i + 1) * 100) / size
+                    self.fill_progress.set_completion(progress)
+                except Exception as e:
+                    # Continue processing other songs even if one fails
+                    print(f"Error processing {file_name}: {e}")
+                    continue
 
-        self.original_widget = self.original_widget[0]
-        self.box_level -= 1
-
-    def test(self, _widget=None):
-        pass
+            self.original_widget = self.original_widget[0]
+            self.box_level -= 1
+        except Exception as e:
+            print(f"Error in automatic cover processing: {e}")
