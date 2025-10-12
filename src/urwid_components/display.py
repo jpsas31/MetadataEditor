@@ -23,16 +23,14 @@ class Display:
     ]
 
     def __init__(self, change_view, audio_player=None, footer=None):
-        self._widget_map = {}  # Map song names to widgets for O(1) lookup - must be first!
+        self._widget_map = {}
         self.walker = urwid.SimpleListWalker(self._generate_menu())
         self.song_list = ListMod(self.walker, self, change_view)
 
-        # Use shared audio player if provided, otherwise create new one
         self.audio_player = audio_player if audio_player is not None else AudioPlayer()
-        # Use shared footer if provided, otherwise create new one
+
         self.footer = footer if footer is not None else Footer()
 
-        # Create metadata editor with footer reference for status updates
         self.metadata_editor = MetadataEditor(
             self.song_list, "pilaMetadata", footer=self.footer
         )
@@ -73,7 +71,7 @@ class Display:
             urwid.connect_signal(button, "click", self.change_focus, user_args=[song])
             widget = urwid.AttrMap(button, None, focus_map="reversed")
             self.walker.append(widget)
-            # Store in widget map for fast lookup
+
             self._widget_map[song] = widget
 
         removed_songs = [
@@ -81,7 +79,7 @@ class Display:
         ]
         for song in removed_songs:
             state.viewInfo.deleteSong(song)
-            # Use widget map for O(1) lookup instead of O(n) loop
+
             if song in self._widget_map:
                 self.walker.remove(self._widget_map[song])
                 del self._widget_map[song]
@@ -97,13 +95,13 @@ class Display:
             )
             widget = urwid.AttrMap(button, None, focus_map="reversed")
             body.append(widget)
-            # Store in widget map for fast lookup
+
             self._widget_map[song_name] = widget
         return body
 
     def change_focus(self, button, song_name):
         """Change focus between the song list and the main panel."""
-        # Find the song index and update metadata
+
         for i in range(state.viewInfo.songsLen()):
             if state.viewInfo.songFileName(i) == song_name:
                 title, album, artist, album_art = state.viewInfo.songInfo(i)

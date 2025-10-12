@@ -24,12 +24,10 @@ class ViewManager:
 
     def _initialize_views(self):
         """Initialize all application views."""
-        # Create shared footer for all views
         from src.urwid_components.footer import Footer
 
         shared_footer = Footer()
 
-        # Main display view (existing complex view)
         display = Display(
             self.change_view_callback,
             audio_player=self.audio_player,
@@ -38,29 +36,24 @@ class ViewManager:
 
         self.add_view("main", display.frame, "Main View")
 
-        # Simple music view - create a modified display with simple track info
         simple_display = Display(
             self.change_view_callback,
             audio_player=self.audio_player,
             footer=shared_footer,
         )
 
-        # Replace the metadata editor with simple track info
         from src.urwid_components.simpleTrackInfo import SimpleTrackInfo
 
         simple_track_info = SimpleTrackInfo()
 
-        # Create simple info panel without YouTube panel
         simple_info_panel = urwid.LineBox(simple_track_info, "Track Info")
 
-        # Create new columns with only the simple info panel (no YouTube panel)
         simple_columns = urwid.Columns(
             [urwid.LineBox(simple_display.song_list, "Canciones"), simple_info_panel],
             dividechars=4,
         )
         simple_frame = urwid.Frame(simple_columns, footer=simple_display.footer)
 
-        # Store reference to simple track info for updates
         simple_display.simple_track_info = simple_track_info
 
         self.add_view("music", simple_frame, "Music Player")

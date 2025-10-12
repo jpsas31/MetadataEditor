@@ -12,19 +12,17 @@ class ViewInfo:
         self.canciones = os.listdir(dir)
         self.canciones = [x for x in self.canciones if "mp3" in x]
         self.canciones.sort()
-        self._metadata_cache = {}  # Cache: {filename: (title, album, artist, album_art)}
+        self._metadata_cache = {}
 
     def getDir(self):
         return self.dir
 
     def addSong(self, song):
-        # Use bisect for O(n) insertion instead of O(n log n) sort
         bisect.insort(self.canciones, song)
 
     def deleteSong(self, song):
-        # No sort needed - list remains sorted after removal
         self.canciones.remove(song)
-        # Invalidate cache for removed song
+
         if song in self._metadata_cache:
             del self._metadata_cache[song]
 
@@ -34,11 +32,9 @@ class ViewInfo:
 
         cancion = self.canciones[index]
 
-        # Check cache first for massive performance improvement
         if cancion in self._metadata_cache:
             return self._metadata_cache[cancion]
 
-        # Load metadata and cache it
         metadata = tagModifier.MP3Editor(cancion).song_info()
         self._metadata_cache[cancion] = metadata
         return metadata

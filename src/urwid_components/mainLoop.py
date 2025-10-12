@@ -11,10 +11,8 @@ class MainLoopManager:
     def __init__(self, state):
         self.state = state
 
-        # Create audio player first
         self.audio_player = AudioPlayer()
 
-        # Pass audio player to view manager
         self.view_manager = ViewManager(self.change_view, self.audio_player)
 
         initial_view = self.view_manager.get_initial_view()
@@ -22,21 +20,17 @@ class MainLoopManager:
             initial_view, palette=self._get_palette(), unhandled_input=self.exit
         )
 
-        # Start audio player thread with proper progress bar updates
-        # Get the main display view to access its footer
         main_view = self.view_manager.get_view("main")
         if (
             main_view
             and hasattr(main_view, "footer")
             and hasattr(main_view.footer, "music_bar")
         ):
-            # Connect audio player to the main view's music bar
             threading.Thread(
                 target=self.audio_player.thread_play,
                 args=[main_view.footer.music_bar.update_position],
             ).start()
         else:
-            # Fallback: start thread without UI updates
             threading.Thread(
                 target=self.audio_player.thread_play,
                 args=[lambda sound_length, play_position: None],
@@ -60,7 +54,6 @@ class MainLoopManager:
 
     def _check_messages(self, loop, *_args):
         if self.state.updateList:
-            # Try to update song list in main view if available
             main_view = self.view_manager.get_view("main")
             if hasattr(main_view, "body") and hasattr(
                 main_view.body, "_update_song_list"
@@ -69,7 +62,7 @@ class MainLoopManager:
 
         try:
             msg = self.state.queueYt.get_nowait()
-            # Try to update text info in main view if available
+
             main_view = self.view_manager.get_view("main")
             if hasattr(main_view, "body") and hasattr(main_view.body, "text_info"):
                 main_view.body.text_info.set_text(msg)
@@ -82,7 +75,7 @@ class MainLoopManager:
         view = self.view_manager.get_view_by_index(index)
         if view:
             self.loop.widget = view
-            # Force a complete screen redraw to prevent corruption
+
             self.loop.screen.clear()
             self.loop.draw_screen()
 

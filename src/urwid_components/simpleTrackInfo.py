@@ -7,13 +7,12 @@ from pathlib import Path
 
 import urwid
 from climage import convert_pil
-from mutagen.id3 import APIC, ID3
+from mutagen.id3 import ID3
 from PIL import Image, ImageFile
 
 from src.singleton import BorgSingleton
 from src.urwid_components.ansiWidget import ANSIWidget
 
-# Set up logging
 logging.basicConfig(
     filename="/tmp/album_art_debug.log",
     level=logging.DEBUG,
@@ -29,14 +28,11 @@ class AlbumArtCache:
     """Two-tier cache (memory + disk) for album art to avoid regenerating ASCII art."""
 
     def __init__(self, cache_dir=None, max_memory_cache_size=50):
-        # In-memory cache for instant access
-        self._memory_cache = {}  # key: cache_key, value: ascii_art
-        self._cache_access_order = []  # Track LRU order
+        self._memory_cache = {}
+        self._cache_access_order = []
         self.max_memory_cache_size = max_memory_cache_size
 
-        # Disk cache for persistence
         if cache_dir is None:
-            # Use XDG cache directory or fallback to ~/.cache
             cache_home = os.environ.get(
                 "XDG_CACHE_HOME", os.path.expanduser("~/.cache")
             )
@@ -44,16 +40,15 @@ class AlbumArtCache:
         else:
             self.cache_dir = Path(cache_dir)
 
-        # Create cache directory if it doesn't exist
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Album art cache directory: {self.cache_dir}")
         logger.info(f"Memory cache max size: {self.max_memory_cache_size}")
 
     def _get_cache_key(self, file_path, image_data):
         """Generate a unique cache key based on file path and image data hash."""
-        # Use MD5 hash of the image data to detect if album art changed
+
         image_hash = hashlib.md5(image_data).hexdigest()
-        # Use MD5 hash of file path for the cache filename
+
         path_hash = hashlib.md5(file_path.encode()).hexdigest()
         return f"{path_hash}_{image_hash}.pkl"
 
@@ -63,7 +58,6 @@ class AlbumArtCache:
             self._cache_access_order.remove(cache_key)
         self._cache_access_order.append(cache_key)
 
-        # Evict oldest items if memory cache is too large
         while len(self._memory_cache) > self.max_memory_cache_size:
             oldest_key = self._cache_access_order.pop(0)
             if oldest_key in self._memory_cache:
@@ -76,20 +70,17 @@ class AlbumArtCache:
         try:
             cache_key = self._get_cache_key(file_path, image_data)
 
-            # Check memory cache first
             if cache_key in self._memory_cache:
                 logger.debug(f"Memory cache hit for: {file_path}")
                 self._update_lru(cache_key)
                 return self._memory_cache[cache_key]
 
-            # Check disk cache
             cache_file = self.cache_dir / cache_key
             if cache_file.exists():
                 logger.debug(f"Disk cache hit for: {file_path}")
                 with open(cache_file, "rb") as f:
                     ascii_art = pickle.load(f)
 
-                # Promote to memory cache
                 self._memory_cache[cache_key] = ascii_art
                 self._update_lru(cache_key)
                 logger.debug(
@@ -110,12 +101,10 @@ class AlbumArtCache:
         try:
             cache_key = self._get_cache_key(file_path, image_data)
 
-            # Store in memory cache
             self._memory_cache[cache_key] = ascii_art
             self._update_lru(cache_key)
             logger.debug(f"Stored in memory cache (size: {len(self._memory_cache)})")
 
-            # Store in disk cache
             cache_file = self.cache_dir / cache_key
             with open(cache_file, "wb") as f:
                 pickle.dump(ascii_art, f)
@@ -131,12 +120,10 @@ class AlbumArtCache:
             clear_disk: If True, also clear disk cache. If False, only clear memory cache.
         """
         try:
-            # Clear memory cache
             self._memory_cache.clear()
             self._cache_access_order.clear()
             logger.info("Memory cache cleared")
 
-            # Clear disk cache if requested
             if clear_disk:
                 for cache_file in self.cache_dir.glob("*.pkl"):
                     cache_file.unlink()
@@ -171,7 +158,6 @@ class AlbumArtCache:
             return {}
 
 
-# Global cache instance
 _album_art_cache = AlbumArtCache()
 
 
@@ -180,18 +166,16 @@ class SimpleTrackInfo(urwid.Pile):
 
     def __init__(self):
         logger.info("SimpleTrackInfo.__init__ called")
-        # Create a container that we'll update in place
+
         self.album_art_container = urwid.Text(
             "♪\n\nNo Album Art\nAvailable", align="center"
         )
 
-        # Create metadata fields in the same style as metadata editor
         self.filename_text = urwid.Text("", align="center")
         self.title_text = urwid.Text("", align="center")
         self.album_text = urwid.Text("", align="center")
         self.artist_text = urwid.Text("", align="center")
 
-        # Create the metadata display similar to metadata editor
         metadata_pile = urwid.Pile(
             [
                 urwid.AttrMap(self.filename_text, "Title"),
@@ -235,7 +219,6 @@ class SimpleTrackInfo(urwid.Pile):
         placeholder = urwid.Text("♪\n\nNo Album Art\nAvailable", align="center")
         self.album_art_container = placeholder
 
-        # Update the widget in the Pile
         current_item = self.contents[0]
         linebox, (sizing, size) = current_item
 
@@ -252,15 +235,13 @@ class SimpleTrackInfo(urwid.Pile):
             logger.warning("update_track called with empty song_filename")
             return
 
-        # Update filename
         self.filename_text.set_text(song_filename)
         logger.debug(f"Set filename text to: {song_filename}")
 
-        # Get metadata from the song
         try:
             if hasattr(state, "viewInfo"):
                 logger.debug("state.viewInfo exists")
-                # Find the song index to get metadata
+
                 song_index = None
                 for i in range(state.viewInfo.songsLen()):
                     if state.viewInfo.songFileName(i) == song_filename:
@@ -280,7 +261,6 @@ class SimpleTrackInfo(urwid.Pile):
                     self.album_text.set_text(album)
                     self.artist_text.set_text(artist)
                 else:
-                    # Fallback to filename-based display
                     display_name = song_filename.replace(".mp3", "").replace("_", " ")
                     logger.debug(f"Using fallback display name: {display_name}")
                     self.title_text.set_text(display_name)
@@ -290,13 +270,12 @@ class SimpleTrackInfo(urwid.Pile):
                 logger.error("state.viewInfo does not exist!")
         except Exception as e:
             logger.error(f"Exception in update_track metadata section: {e}")
-            # Fallback to filename-based display
+
             display_name = song_filename.replace(".mp3", "").replace("_", " ")
             self.title_text.set_text(display_name)
             self.album_text.set_text("")
             self.artist_text.set_text("")
 
-        # Update album art
         logger.info("Calling _update_album_art")
         self._update_album_art(song_filename)
 
@@ -309,10 +288,8 @@ class SimpleTrackInfo(urwid.Pile):
                 full_path = f"{state.viewInfo.getDir()}/{song_filename}"
                 logger.debug(f"Full path: {full_path}")
 
-                # Try to get album art from the MP3 file
                 apic_frame = ID3(full_path).get("APIC:Cover")
                 if not apic_frame:
-                    # No album art found
                     logger.info(f"No album art found in: {song_filename}")
                     self._show_placeholder()
                     return
@@ -320,13 +297,11 @@ class SimpleTrackInfo(urwid.Pile):
                 logger.info("Found album art! Checking cache...")
                 image_data = apic_frame.data
 
-                # Check cache first
                 cached_ascii_art = _album_art_cache.get(full_path, image_data)
                 if cached_ascii_art:
                     logger.info(f"Using cached album art for: {song_filename}")
                     ascii_art = cached_ascii_art
                 else:
-                    # Not in cache, generate it
                     logger.info("Generating ASCII art from image...")
                     img = Image.open(BytesIO(image_data))
                     ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -338,29 +313,20 @@ class SimpleTrackInfo(urwid.Pile):
                         f"ASCII art line count: {len(ascii_art.split(chr(10)))}"
                     )
 
-                    # Cache the ASCII art for future use
                     _album_art_cache.set(full_path, image_data, ascii_art)
 
-                # Create widget from ASCII art (either cached or newly generated)
                 cover_widget = ANSIWidget(ascii_art)
 
-                # Use the cover_widget (either from cache or newly created)
                 if cover_widget:
-                    # Debug the widget structure
                     logger.debug(f"self.contents length: {len(self.contents)}")
                     logger.debug(f"self.contents[0] type: {type(self.contents[0])}")
                     logger.debug(f"self.contents[0] content: {self.contents[0]}")
 
-                    # Try a more direct approach - update the album_art_container directly
-                    # Instead of navigating the complex widget hierarchy
                     self.album_art_container = cover_widget
 
-                    # Now update the widget in the Pile
-                    # The structure is (widget, ('weight', 3)) not ('weight', 3, widget)
-                    current_item = self.contents[0]  # (LineBox, ('weight', 3))
+                    current_item = self.contents[0]
                     linebox, (sizing, size) = current_item
 
-                    # DEBUG: Let's test the ANSIWidget directly without centering first
                     logger.debug(f"ANSIWidget type: {type(cover_widget)}")
                     logger.debug(f"ANSIWidget lines count: {len(cover_widget.lines)}")
                     logger.debug(
@@ -374,7 +340,6 @@ class SimpleTrackInfo(urwid.Pile):
                         f"ANSIWidget lines after filtering: {len(cover_widget.lines)}"
                     )
 
-                    # Center the album art horizontally using Padding with pack width
                     centered_cover = urwid.Padding(
                         cover_widget, align="center", width="pack"
                     )
@@ -382,13 +347,6 @@ class SimpleTrackInfo(urwid.Pile):
                         urwid.Filler(centered_cover, valign="middle")
                     )
 
-                    # Also try a simple text widget to see if that works
-                    # test_widget = urwid.Text("TEST ALBUM ART PLACEHOLDER", align="center")
-                    # new_linebox = urwid.LineBox(
-                    #     urwid.Filler(test_widget, valign="middle")
-                    # )
-
-                    # Replace the item in contents
                     self.contents[0] = (new_linebox, (sizing, size))
                     logger.info(
                         "Successfully updated album art widget (direct replacement)"

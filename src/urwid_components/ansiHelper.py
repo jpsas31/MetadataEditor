@@ -18,7 +18,7 @@ Urwid Helper
         - get_ansii_group_matches_for_text: Get a iterator of (ansicodes: int[], text: str) found within the text.
 
     Derived from:
-        https://github.com/Nanoseb/ncTelegram/blob/master/ncTelegram/ui_msgwidget.py#L218
+        https://github.com/Nanoseb/ncTelegram/blob/master/ncTelegram/ui_msgwidget.py
 """
 
 import re
@@ -83,7 +83,7 @@ bg_lookup = {
 def translate_color(attr: Union[str, Tuple, List[int]]) -> Tuple[str, str]:
     """
     Translates a 3/4 bit ANSII escape code into the equivalent urwid color:
-    Source: https://en.wikipedia.org/wiki/ANSI_escape_code#3/4_bit
+    Source: https://en.wikipedia.org/wiki/ANSI_escape_code
 
     >>> translate_color([91])
     ('light red', '')
@@ -121,7 +121,6 @@ def translate_color(attr: Union[str, Tuple, List[int]]) -> Tuple[str, str]:
 
     for elem in list_attr:
         if elem == 0:
-            # reset, special case
             fg, bg = "", ""
             continue
 
@@ -178,7 +177,6 @@ def translate_text_for_urwid(raw_text):
     if hasattr(raw_text, "decode"):
         raw_text = raw_text.decode("utf-8")
 
-    # Reset the start of text (+ allow for text that isn't formatted)
     if not (raw_text.startswith("\033[") or raw_text.startswith("\x1b[")):
         raw_text = "\x1b[0m" + raw_text
 

@@ -33,7 +33,6 @@ def popup(caption, choice, call, topWidget):
 class CascadingBoxes(urwid.WidgetPlaceholder):
     max_box_levels = 4
 
-    #
     def __init__(self, elements):
         self.contents = elements
         super(CascadingBoxes, self).__init__(

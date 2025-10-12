@@ -8,12 +8,9 @@ class ANSICanvas(urwid.canvas.Canvas):
     def __init__(self, size: Tuple[int, ...], text_lines: List[str]) -> None:
         super().__init__()
 
-        # Handle both single-dimensional (width) and two-dimensional (width, height) sizing
         if len(size) == 1:
             self.maxcols = size[0]
-            self.maxrows = len(
-                text_lines
-            )  # Height is determined by the number of lines
+            self.maxrows = len(text_lines)
         else:
             self.maxcols, self.maxrows = size
 
@@ -38,7 +35,6 @@ class ANSICanvas(urwid.canvas.Canvas):
 
         for i in range(rows):
             if i < len(self.text_lines):
-                # Convert to bytes but don't pad - let urwid handle the layout
                 text = self.text_lines[i].encode("utf-8")
                 line = [(None, "U", text)]
             else:
@@ -48,25 +44,20 @@ class ANSICanvas(urwid.canvas.Canvas):
 
 
 class ANSIWidget(urwid.Widget):
-    _sizing = frozenset(
-        [urwid.widget.BOX, urwid.widget.FLOW]
-    )  # Support both BOX and FLOW sizing
+    _sizing = frozenset([urwid.widget.BOX, urwid.widget.FLOW])
 
-    # Regex pattern to match ANSI escape sequences
     ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 
     def __init__(self, text: str = "") -> None:
-        # Split and strip trailing empty lines
         self.lines = text.split("\n")
-        # Remove trailing empty lines (including lines with only ANSI codes)
+
         while self.lines:
-            # Check if the last line is empty after removing ANSI codes
             clean_last_line = self.ANSI_ESCAPE_PATTERN.sub("", self.lines[-1]).strip()
             if not clean_last_line:
                 self.lines.pop()
             else:
                 break
-        # Calculate the actual display width (without ANSI codes)
+
         self._display_width = self._calculate_display_width()
 
     def _calculate_display_width(self) -> int:
@@ -75,16 +66,15 @@ class ANSIWidget(urwid.Widget):
             return 0
         max_width = 0
         for line in self.lines:
-            # Remove ANSI escape sequences and calculate the actual visible width
             clean_line = self.ANSI_ESCAPE_PATTERN.sub("", line)
-            # Count the actual character width (accounting for unicode characters)
+
             width = len(clean_line)
             max_width = max(max_width, width)
         return max_width
 
     def set_content(self, lines: List[str]) -> None:
         self.lines = lines
-        # Remove trailing empty lines (including lines with only ANSI codes)
+
         while self.lines:
             clean_last_line = self.ANSI_ESCAPE_PATTERN.sub("", self.lines[-1]).strip()
             if not clean_last_line:
@@ -99,7 +89,6 @@ class ANSIWidget(urwid.Widget):
         return canvas
 
     def rows(self, size: Tuple[int, ...], focus: bool = False) -> int:
-        # Return the number of lines in the text
         return len(self.lines)
 
     def pack(

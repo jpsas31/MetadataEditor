@@ -34,7 +34,7 @@ dependencies = [
     "requests",
     "pillow",
     "spotipy",
-    "pygame<3.0.0,>=2.6.1",
+    "miniaudio>=1.61",
     "yt-dlp<2025.0.0,>=2024.12.23",
     "python-dotenv>=1.0.1",
     "mutagen>=1.47.0",

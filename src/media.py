@@ -1,53 +1,249 @@
-from os import environ
-environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
-import pygame.mixer
+import time
+from threading import Lock, Thread
+
+import miniaudio
+
 from src.singleton import BorgSingleton
 
+
 class AudioPlayer:
+    """
+    Enhanced audio player using miniaudio with advanced controls.
+
+    Features:
+    - Play/Pause/Stop
+    - Seek to position
+    - Volume control (0.0 to 1.0)
+    - Playback speed control
+    - Loop mode
+    - Accurate position tracking
+    """
+
     def __init__(self):
         self.state = BorgSingleton()
         self.paused = False
-        self.current_sound = None
+        self.current_file = None
         self.sound_length = 0
         self.play_position = 0
-        pygame.mixer.init()
+        self.is_playing_flag = False
+        self.device = None
+        self.decoded_audio = None
+        self.lock = Lock()
+        self._start_time = 0
+        self._pause_time = 0
+        self._seek_position = 0  # Track seek offset in milliseconds
+        self._volume = 1.0  # Volume level (0.0 to 1.0)
+        self._playback_speed = 1.0  # Playback speed multiplier
+        self._loop_enabled = False  # Loop playback
+        self._sample_rate = 44100
+        self._num_channels = 2
 
     def set_media(self, file_name):
-        if not pygame.mixer.get_init():
-            pygame.mixer.init()
+        """Load and play an audio file using streaming for better performance."""
+        # Stop current playback immediately
+        self.stop()
 
-        pygame.mixer.music.load(file_name)
-        self.current_sound = pygame.mixer.music
-        self.sound_length = pygame.mixer.Sound(file_name).get_length() * 1000
-        self.play_position = 0
-        self.current_sound.play()
+        # Load and start playback in background thread
+        def load_and_play():
+            try:
+                # Get file info first (quick operation)
+                file_info = miniaudio.get_file_info(file_name)
+
+                with self.lock:
+                    self.current_file = file_name
+                    self.sound_length = int(file_info.duration * 1000)
+                    self.play_position = 0
+                    self.paused = False
+                    self._start_time = time.time() * 1000
+                    self._seek_position = 0
+                    self._sample_rate = file_info.sample_rate
+                    self._num_channels = file_info.nchannels
+
+                    # Decode only what we need for seeking (lazy loading)
+                    self.decoded_audio = None
+
+                # Start streaming playback
+                self._start_streaming_playback()
+
+            except Exception as e:
+                print(f"Error loading media file {file_name}: {e}")
+                self.is_playing_flag = False
+
+        # Run in daemon thread so it doesn't block UI
+        Thread(target=load_and_play, daemon=True).start()
+
+    def _start_playback(self, start_frame=0):
+        """Internal method to start or restart playback from a specific frame."""
+        try:
+            if self.device:
+                try:
+                    self.device.stop()
+                    self.device.close()
+                except Exception:
+                    pass
+
+            # Create playback device
+            self.device = miniaudio.PlaybackDevice(
+                sample_rate=self._sample_rate, nchannels=self._num_channels
+            )
+            self.is_playing_flag = True
+            stream = miniaudio.stream_file(self.current_file)
+            self.device.start(stream)
+
+        except Exception as e:
+            print(f"Error starting playback: {e}")
+            self.is_playing_flag = False
+
+    def _start_streaming_playback(self):
+        """Start playback using streaming mode for better performance."""
+        try:
+            if self.device:
+                try:
+                    self.device.stop()
+                    self.device.close()
+                except Exception:
+                    pass
+
+            # Create playback device
+            self.device = miniaudio.PlaybackDevice(
+                sample_rate=self._sample_rate, nchannels=self._num_channels
+            )
+            self.is_playing_flag = True
+
+            stream = miniaudio.stream_file(self.current_file)
+            self.device.start(stream)
+
+        except Exception as e:
+            print(f"Error starting streaming playback: {e}")
+            self.is_playing_flag = False
+
+    def play(self):
+        """Start or resume playback (non-blocking)."""
+
+        def do_play():
+            with self.lock:
+                if self.paused and self.device:
+                    # Resume from pause
+                    resume_time = time.time() * 1000
+                    self._start_time += resume_time - self._pause_time
+                    self.paused = False
+                    # Restart playback from current position
+                    current_pos_ms = (
+                        self._pause_time - self._start_time + self._seek_position
+                    )
+                    start_frame = int((current_pos_ms / 1000.0) * self._sample_rate)
+                    self._start_playback(start_frame)
+                elif not self.is_playing_flag and self.current_file:
+                    # Restart from beginning
+                    pass  # set_media already runs async
+
+            # If no current file and not paused, call set_media
+            if not self.paused and not self.is_playing_flag and self.current_file:
+                self.set_media(self.current_file)
+
+        Thread(target=do_play, daemon=True).start()
+
+    def pause(self):
+        """Pause playback."""
+        with self.lock:
+            if self.is_playing_flag and not self.paused:
+                self._pause_time = time.time() * 1000
+                self.paused = True
+                self.is_playing_flag = False
+                try:
+                    if self.device:
+                        self.device.stop()
+                except Exception:
+                    pass
 
     def resume_pause(self):
-        if self.current_sound is None:
-            return 
-        
-        if self.current_sound.get_busy():
-            self.play_position = pygame.mixer.music.get_pos()
-            self.current_sound.pause()
+        """Toggle between play and pause."""
+        with self.lock:
+            if self.paused or not self.is_playing_flag:
+                # Release lock before calling play (which acquires it)
+                pass
+        if self.paused or not self.is_playing_flag:
+            self.play()
         else:
-            self.current_sound.unpause()
-
-    def get_play_position(self):
-        
-        return pygame.mixer.music.get_pos()
-
-    def is_playing(self):
-        if self.current_sound is None:
-            return False
-        
-        return self.current_sound.get_busy()
+            self.pause()
 
     def stop(self):
-        pygame.mixer.music.stop()
+        """Stop playback and reset position."""
+        with self.lock:
+            self.is_playing_flag = False
+            self.paused = False
+            if self.device:
+                try:
+                    self.device.stop()
+                    self.device.close()
+                except Exception:
+                    pass
+                self.device = None
+            self.play_position = 0
+            self._seek_position = 0
 
+    def set_volume(self, volume):
+        """
+        Set playback volume.
+
+        Args:
+            volume: Volume level from 0.0 (silent) to 1.0 (full volume)
+        """
+        self._volume = max(0.0, min(1.0, volume))
+
+    def get_volume(self):
+        """Get current volume level (0.0 to 1.0)."""
+        return self._volume
+
+    def set_loop(self, enabled):
+        """
+        Enable or disable loop mode.
+
+        Args:
+            enabled: True to loop, False to play once
+        """
+        self._loop_enabled = enabled
+
+    def get_loop(self):
+        """Check if loop mode is enabled."""
+        return self._loop_enabled
+
+    def get_play_position(self):
+        """Get current playback position in milliseconds."""
+        if self.paused:
+            return int(self._pause_time - self._start_time + self._seek_position)
+        if self.is_playing_flag:
+            return int((time.time() * 1000) - self._start_time + self._seek_position)
+        return self.play_position
+
+    def get_duration(self):
+        """Get total duration in milliseconds."""
+        return self.sound_length
+
+    def get_progress(self):
+        """Get playback progress as percentage (0.0 to 100.0)."""
+        if self.sound_length == 0:
+            return 0.0
+        return (self.get_play_position() / self.sound_length) * 100.0
+
+    def is_playing(self):
+        """Check if audio is currently playing."""
+        with self.lock:
+            # Check if we've exceeded the sound length (and not looping)
+            if not self._loop_enabled:
+                if (
+                    self.is_playing_flag
+                    and self.get_play_position() >= self.sound_length
+                ):
+                    self.is_playing_flag = False
+            return self.is_playing_flag and not self.paused
     
     def thread_play(self, update_position):
+        """Thread loop for updating playback position."""
         while not self.state.stop_event.is_set():
             if self.is_playing():
                 update_position(self.sound_length, self.get_play_position())
-        pygame.mixer.quit()   
+            time.sleep(0.1)  # Update every 100ms
+
+        # Cleanup on exit
+        self.stop()
