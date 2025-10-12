@@ -6,7 +6,7 @@ authors = ["Your Name <you@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.13"
 eyed3 = "*"
 urwid = "*"
 requests = "*"
@@ -28,7 +28,7 @@ build-backend = "pdm.backend"
 authors = [
     {name = "Your Name", email = "you@example.com"},
 ]
-requires-python = "<4.0,>=3.9"
+requires-python = ">=3.13"
 dependencies = [
     "urwid",
     "requests",
