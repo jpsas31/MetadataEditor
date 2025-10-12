@@ -22,17 +22,22 @@ class Display:
         ("complete", "black", "dark magenta"),
     ]
 
-    def __init__(self, change_view, audio_player=None):
+    def __init__(self, change_view, audio_player=None, footer=None):
         self._widget_map = {}  # Map song names to widgets for O(1) lookup - must be first!
         self.walker = urwid.SimpleListWalker(self._generate_menu())
         self.song_list = ListMod(self.walker, self, change_view)
-        self.metadata_editor = MetadataEditor(self.song_list, "pilaMetadata")
-
-        state.pilaMetadata = self.metadata_editor
 
         # Use shared audio player if provided, otherwise create new one
         self.audio_player = audio_player if audio_player is not None else AudioPlayer()
-        self.footer = Footer()
+        # Use shared footer if provided, otherwise create new one
+        self.footer = footer if footer is not None else Footer()
+
+        # Create metadata editor with footer reference for status updates
+        self.metadata_editor = MetadataEditor(
+            self.song_list, "pilaMetadata", footer=self.footer
+        )
+
+        state.pilaMetadata = self.metadata_editor
         self.info_panel = urwid.LineBox(self.metadata_editor, "Info")
 
         self.text_info = urwid.Text("")

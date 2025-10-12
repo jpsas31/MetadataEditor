@@ -33,9 +33,10 @@ class MP3Editor:
 
             image_data = resp.content
 
-            if show:
-                with Image.open(BytesIO(image_data)) as img:
-                    img.show()
+            # Never show in external viewer - disabled for TUI compatibility
+            # if show:
+            #     with Image.open(BytesIO(image_data)) as img:
+            #         img.show()
 
             if not self.audiofile.get("APIC:Cover"):
                 self.audiofile.add(
@@ -54,14 +55,9 @@ class MP3Editor:
             print(f"Error adding album cover: {e}")
 
     def show_album_cover(self):
-        try:
-            apic_frame = self.audiofile.get("APIC:Cover")
-            if apic_frame:
-                with Image.open(BytesIO(apic_frame.data)) as img:
-                    ImageFile.LOAD_TRUNCATED_IMAGES = True
-                    img.show()
-        except Exception as e:
-            print(f"Error showing album cover: {e}")
+        """Show album cover - disabled to prevent external viewer popup."""
+        # Disabled: external image viewers are disruptive to the TUI
+        pass
 
     def get_cover(self):
         apic_frame = self.audiofile.get("APIC:Cover")
@@ -83,7 +79,16 @@ class MP3Editor:
         album_art = "Has cover" if album_art else "No Cover"
         return title, album, artist, album_art
 
-    def fill_metadata_from_spotify(self, show_cover=True):
+    def has_metadata(self):
+        """Check if song already has complete metadata."""
+        title = self.audiofile.get("TIT2")
+        artist = self.audiofile.get("TPE1")
+        album = self.audiofile.get("TALB")
+        cover = self.audiofile.get("APIC:Cover")
+
+        return bool(title and artist and album and cover)
+
+    def fill_metadata_from_spotify(self, show_cover=False):
         try:
             query = self._clean_query()
             title, artist, album, cover = spotifyInfo.get_Track_Features(query)
@@ -97,7 +102,7 @@ class MP3Editor:
             self.audiofile.save()
 
             if cover:
-                self.add_album_cover(cover, show=show_cover)
+                self.add_album_cover(cover, show=False)  # Never show in external viewer
         except Exception as e:
             print(f"Error filling metadata from Spotify: {e}")
 

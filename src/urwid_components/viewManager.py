@@ -24,14 +24,25 @@ class ViewManager:
 
     def _initialize_views(self):
         """Initialize all application views."""
+        # Create shared footer for all views
+        from src.urwid_components.footer import Footer
+
+        shared_footer = Footer()
+
         # Main display view (existing complex view)
-        display = Display(self.change_view_callback, audio_player=self.audio_player)
+        display = Display(
+            self.change_view_callback,
+            audio_player=self.audio_player,
+            footer=shared_footer,
+        )
 
         self.add_view("main", display.frame, "Main View")
 
         # Simple music view - create a modified display with simple track info
         simple_display = Display(
-            self.change_view_callback, audio_player=self.audio_player
+            self.change_view_callback,
+            audio_player=self.audio_player,
+            footer=shared_footer,
         )
 
         # Replace the metadata editor with simple track info

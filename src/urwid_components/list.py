@@ -54,7 +54,20 @@ class ListMod(urwid.ListBox):
     def _play_song(self, pos):
         file_name = state.viewInfo.songFileName(pos)
         self.display.audio_player.set_media(file_name)
-        self.display.footer.set_text(file_name)
+
+        # Get metadata and display title - artist if available, otherwise filename
+        try:
+            title, album, artist, _ = state.viewInfo.songInfo(pos)
+            if title and artist:
+                display_text = f"{title} - {artist}"
+            elif title:
+                display_text = title
+            else:
+                display_text = os.path.basename(file_name)
+        except Exception:
+            display_text = os.path.basename(file_name)
+
+        self.display.footer.set_text(display_text)
 
     def _update_metadata_panel(self, pos, title, album, artist, album_art):
         # Update the main metadata editor if it exists

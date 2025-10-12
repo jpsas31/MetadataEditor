@@ -14,9 +14,10 @@ state = BorgSingleton()
 
 
 class MetadataEditor(CascadingBoxes):
-    def __init__(self, song_list, top_widget_name):
+    def __init__(self, song_list, top_widget_name, footer=None):
         self.song_list = song_list
         self.modifier = None
+        self.footer = footer
         self.fill_progress = urwid.ProgressBar("normal", "complete")
         self._update_modifier()
         self._initialize_ui(top_widget_name)
@@ -33,14 +34,7 @@ class MetadataEditor(CascadingBoxes):
             self._create_title_widget("Artist"),
             self._create_edit_widget("", "artist"),
             self._create_button("Set Cover", self.set_cover),
-            self._create_button("View Cover", self.view_cover),
             self._create_button("Auto-fill Fields", self.fill_fields),
-            popup(
-                "View Cover",
-                [self.get_cover()],
-                lambda: 0,
-                top_widget_name,
-            ),
             popup(
                 "Auto-fill for All Songs",
                 [self.fill_progress],
@@ -184,12 +178,40 @@ class MetadataEditor(CascadingBoxes):
     def _automatic_cover(self):
         try:
             size = state.viewInfo.songsLen()
+            processed = 0
+            skipped = 0
+
+            # Show initial status
+            if self.footer:
+                self.footer.set_status(f"Auto-fill: Starting... (0/{size})")
 
             for i in range(size):
                 try:
                     file_name = state.viewInfo.songFileName(i)
                     self._update_modifier(file_name)
+
+                    # Skip songs that already have complete metadata
+                    if self.modifier.has_metadata():
+                        skipped += 1
+                        # Update progress for skipped songs too
+                        progress = ((i + 1) * 100) / size
+                        self.fill_progress.set_completion(progress)
+
+                        # Update footer status
+                        if self.footer:
+                            self.footer.set_status(
+                                f"Auto-fill: {i + 1}/{size} | Updated: {processed} | Skipped: {skipped}"
+                            )
+                        continue
+
+                    # Fill metadata for songs that need it
+                    if self.footer:
+                        self.footer.set_status(
+                            f"Auto-fill: Processing '{file_name}' ({i + 1}/{size})"
+                        )
+
                     self.modifier.fill_metadata_from_spotify(show_cover=False)
+                    processed += 1
 
                     # Invalidate cache after updating metadata
                     state.viewInfo.invalidate_cache(file_name)
@@ -197,12 +219,37 @@ class MetadataEditor(CascadingBoxes):
                     # Calculate progress correctly: (current + 1) * 100 / total
                     progress = ((i + 1) * 100) / size
                     self.fill_progress.set_completion(progress)
+
+                    # Update footer status
+                    if self.footer:
+                        self.footer.set_status(
+                            f"Auto-fill: {i + 1}/{size} | Updated: {processed} | Skipped: {skipped}"
+                        )
                 except Exception as e:
                     # Continue processing other songs even if one fails
                     print(f"Error processing {file_name}: {e}")
+                    if self.footer:
+                        self.footer.set_status(
+                            f"Auto-fill: Error on '{file_name}' - continuing... ({i + 1}/{size})"
+                        )
                     continue
 
-            self.original_widget = self.original_widget[0]
-            self.box_level -= 1
+            # Show completion message in footer
+            if self.footer:
+                self.footer.set_status(
+                    f"✓ Auto-fill Complete: {processed} updated, {skipped} skipped"
+                )
+
+                # Auto-clear status after 5 seconds
+                import time
+
+                time.sleep(5)
+                self.footer.clear_status()
+
+            # Don't change the widget - stay on the metadata editor view
+            # self.original_widget = self.original_widget[0]
+            # self.box_level -= 1
         except Exception as e:
             print(f"Error in automatic cover processing: {e}")
+            if self.footer:
+                self.footer.set_status(f"✗ Auto-fill Error: {e}")
