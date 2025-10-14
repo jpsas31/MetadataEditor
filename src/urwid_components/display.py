@@ -5,7 +5,6 @@ import urwid
 from src.media import AudioPlayer
 from src.singleton import BorgSingleton
 from src.urwid_components.footer import Footer
-from src.urwid_components.list import ListMod
 from src.urwid_components.metadataEditorPop import MetadataEditor
 from src.urwid_components.youtubeEdit import CustomEdit
 
@@ -22,10 +21,10 @@ class Display:
         ("complete", "black", "dark magenta"),
     ]
 
-    def __init__(self, change_view, audio_player=None, footer=None):
-        self._widget_map = {}
-        self.walker = urwid.SimpleListWalker(self._generate_menu())
-        self.song_list = ListMod(self.walker, self, change_view)
+    def __init__(self, audio_player=None, footer=None, song_list=None, widget_map=None):
+        self._widget_map = widget_map
+        self.song_list = song_list
+        self.song_list.set_display(self)
 
         self.audio_player = audio_player if audio_player is not None else AudioPlayer()
 

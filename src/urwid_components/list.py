@@ -8,10 +8,13 @@ state = BorgSingleton()
 
 
 class ListMod(urwid.ListBox):
-    def __init__(self, body, display, changeView):
+    def __init__(self, body, changeView):
         super().__init__(body)
-        self.display = display
+        self.display = None
         self.changeView = changeView
+
+    def set_display(self, display):
+        self.display = display
 
     def keypress(self, size, key):
         cursor_pos = self.get_focus()[1]
