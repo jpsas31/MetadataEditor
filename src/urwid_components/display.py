@@ -37,6 +37,12 @@ class Display:
         state.pilaMetadata = self.metadata_editor
         self.info_panel = urwid.LineBox(self.metadata_editor, "Info")
 
+        # Make info_panel focusable
+        def info_panel_keypress(size, key):
+            return key
+
+        self.info_panel.keypress = info_panel_keypress
+
         self.text_info = urwid.Text("")
         self.url_input = CustomEdit("Escribe link: ", parent=self, multiline=True)
         self.youtube_panel = urwid.LineBox(
@@ -49,9 +55,23 @@ class Display:
             "Youtubedl",
         )
 
-        self.main_panel = urwid.LineBox(
-            urwid.Pile([self.info_panel, self.youtube_panel])
-        )
+        # Make youtube_panel focusable
+        def youtube_panel_keypress(size, key):
+            return key
+
+        self.youtube_panel.keypress = youtube_panel_keypress
+
+        # Create a focusable wrapper for the main panel
+        class FocusablePile(urwid.Pile):
+            def keypress(self, size, key):
+                # Handle focus navigation within the pile
+                if key in ("up", "down", "tab"):
+                    # Let the parent Pile handle focus navigation
+                    return super().keypress(size, key)
+                # For other keys, just return them
+                return key
+
+        self.main_panel = FocusablePile([self.info_panel, self.youtube_panel])
         self.columns = urwid.Columns(
             [urwid.LineBox(self.song_list, "Canciones"), self.main_panel],
             dividechars=4,

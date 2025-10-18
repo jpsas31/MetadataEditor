@@ -87,7 +87,7 @@ class AudioPlayer:
                 sample_rate=self._sample_rate, nchannels=self._num_channels
             )
             self.is_playing_flag = True
-            stream = miniaudio.stream_file(self.current_file)
+            stream = miniaudio.stream_file(self.current_file, seek_frame=start_frame)
             self.device.start(stream)
 
         except Exception as e:

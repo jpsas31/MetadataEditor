@@ -31,6 +31,8 @@ class ViewManager:
         )
 
         if self.key_handler:
+            self.key_handler.list_widget = self.shared_song_list
+            # Ensure ListMod has the correct key_handler reference
             self.shared_song_list.key_handler = self.key_handler
 
         display = Display(

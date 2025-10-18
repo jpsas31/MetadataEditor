@@ -29,6 +29,11 @@ class MetadataEditor(CascadingBoxes):
         self._initialize_ui(top_widget_name)
         super().__init__(self.contents)
 
+    def keypress(self, size, key):
+        """Handle keypress events for the metadata editor."""
+        # For now, just pass through to parent
+        return super().keypress(size, key)
+
     def _initialize_ui(self, top_widget_name):
         self.contents = [
             self._create_title_widget("File Name"),

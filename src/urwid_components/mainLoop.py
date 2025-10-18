@@ -23,15 +23,13 @@ class MainLoopManager:
 
         self.audio_player = AudioPlayer()
 
-        self.view_manager = ViewManager(self.change_view, self.audio_player, None)
+        # Initialize KeyHandler first (without list_widget reference)
+        self.key_handler = KeyHandler(main_loop_manager=self)
 
-        # Initialize KeyHandler after view_manager is created so we can access the list widget
-        self.key_handler = KeyHandler(
-            main_loop_manager=self, list_widget=self.view_manager.shared_song_list
+        # Create ViewManager with KeyHandler
+        self.view_manager = ViewManager(
+            self.change_view, self.audio_player, self.key_handler
         )
-
-        # Update the view_manager's reference to the key_handler
-        self.view_manager.key_handler = self.key_handler
 
         initial_view = self.view_manager.get_initial_view()
         self.loop = urwid.MainLoop(

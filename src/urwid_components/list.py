@@ -19,8 +19,9 @@ class ListMod(urwid.ListBox):
 
     def keypress(self, size, key):
         # Use KeyHandler for local keys if available, otherwise fall back to direct handling
-        if self.key_handler and self.key_handler.handle_key(key, "list"):
-            return
+        if self.key_handler:
+            if self.key_handler.handle_key(key, "list"):
+                return
 
         # Fallback to direct key handling for keys not handled by KeyHandler
         cursor_pos = self.get_focus()[1]
@@ -52,13 +53,21 @@ class ListMod(urwid.ListBox):
         """
         player = self.display.audio_player
 
-        # Navigation
+        # Navigation with wrap-around
         if key == "down":
-            self._move_focus(cursor_pos + 1)
+            new_pos = cursor_pos + 1
+            if new_pos >= len(self.body):
+                new_pos = 0  # Wrap to top
+            self._move_focus(new_pos)
         elif key == "up":
-            self._move_focus(cursor_pos - 1)
+            new_pos = cursor_pos - 1
+            if new_pos < 0:
+                new_pos = len(self.body) - 1  # Wrap to bottom
+            self._move_focus(new_pos)
         elif key == "right":
             self.display.columns.focus_col = 1
+        elif key == "left":
+            self.display.columns.focus_col = 0
         elif key == "esc":
             state.stop_event.set()
             raise urwid.ExitMainLoop()
@@ -114,7 +123,7 @@ class ListMod(urwid.ListBox):
         """Show volume level in footer (temporary feedback)."""
         if hasattr(self.display, "footer"):
             volume = int(self.display.audio_player.get_volume() * 100)
-            status = "🔇 Muted" if volume == 0 else f"🔊 Volume: {volume}%"
+            status = "Muted" if volume == 0 else f"Volume: {volume}%"
             self.display.footer.set_status(status)
 
             import threading
@@ -132,7 +141,7 @@ class ListMod(urwid.ListBox):
         """Show loop mode status in footer (temporary feedback)."""
         if hasattr(self.display, "footer"):
             loop_enabled = self.display.audio_player.get_loop()
-            status = "🔁 Loop: ON" if loop_enabled else "🔁 Loop: OFF"
+            status = "Loop: ON" if loop_enabled else "Loop: OFF"
             self.display.footer.set_status(status)
 
             import threading
@@ -147,7 +156,14 @@ class ListMod(urwid.ListBox):
             threading.Thread(target=clear_status, daemon=True).start()
 
     def _move_focus(self, new_pos):
-        if 0 <= new_pos < len(self.body):
+        # Handle wrap-around positions
+        max_pos = len(self.body) - 1
+        if new_pos > max_pos:
+            new_pos = 0
+        elif new_pos < 0:
+            new_pos = max_pos
+
+        if 0 <= new_pos <= max_pos:
             title, album, artist, album_art = state.viewInfo.songInfo(new_pos)
             self._update_metadata_panel(new_pos, title, album, artist, album_art)
 
@@ -176,52 +192,32 @@ class ListMod(urwid.ListBox):
         self.display.footer.set_text(display_text)
 
     def _play_next_song(self, current_pos):
-        """Play the next song in the list."""
+        """Play the next song in the list with wrap-around."""
         next_pos = current_pos + 1
-        if next_pos < state.viewInfo.songsLen():
-            self.set_focus(next_pos)
+        max_pos = state.viewInfo.songsLen() - 1
 
-            title, album, artist, album_art = state.viewInfo.songInfo(next_pos)
-            self._update_metadata_panel(next_pos, title, album, artist, album_art)
+        # Wrap around to beginning if at end
+        if next_pos > max_pos:
+            next_pos = 0
 
-            self._play_song(next_pos)
-        else:
-            if hasattr(self.display, "footer"):
-                self.display.footer.set_status("📜 End of playlist")
-                import threading
-
-                def clear_status():
-                    import time
-
-                    time.sleep(2)
-                    if hasattr(self.display, "footer"):
-                        self.display.footer.clear_status()
-
-                threading.Thread(target=clear_status, daemon=True).start()
+        self.set_focus(next_pos)
+        title, album, artist, album_art = state.viewInfo.songInfo(next_pos)
+        self._update_metadata_panel(next_pos, title, album, artist, album_art)
+        self._play_song(next_pos)
 
     def _play_previous_song(self, current_pos):
-        """Play the previous song in the list."""
+        """Play the previous song in the list with wrap-around."""
         prev_pos = current_pos - 1
-        if prev_pos >= 0:
-            self.set_focus(prev_pos)
+        max_pos = state.viewInfo.songsLen() - 1
 
-            title, album, artist, album_art = state.viewInfo.songInfo(prev_pos)
-            self._update_metadata_panel(prev_pos, title, album, artist, album_art)
+        # Wrap around to end if at beginning
+        if prev_pos < 0:
+            prev_pos = max_pos
 
-            self._play_song(prev_pos)
-        else:
-            if hasattr(self.display, "footer"):
-                self.display.footer.set_status("📜 Start of playlist")
-                import threading
-
-                def clear_status():
-                    import time
-
-                    time.sleep(2)
-                    if hasattr(self.display, "footer"):
-                        self.display.footer.clear_status()
-
-                threading.Thread(target=clear_status, daemon=True).start()
+        self.set_focus(prev_pos)
+        title, album, artist, album_art = state.viewInfo.songInfo(prev_pos)
+        self._update_metadata_panel(prev_pos, title, album, artist, album_art)
+        self._play_song(prev_pos)
 
     def _update_metadata_panel(self, pos, title, album, artist, album_art):
         if hasattr(self.display, "metadata_editor"):

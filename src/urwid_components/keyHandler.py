@@ -19,9 +19,7 @@ class KeyBinding:
         self.key = key
         self.description = description
         self.handler = handler
-        self.global_key = (
-            global_key  # Whether this key works globally or only in specific widgets
-        )
+        self.global_key = global_key
 
     def __repr__(self):
         scope = "Global" if self.global_key else "Local"
@@ -38,17 +36,15 @@ class KeyHandler:
         self.global_bindings: Dict[str, KeyBinding] = {}
         self.config = config or {}
         self.main_loop_manager = main_loop_manager
-        self.list_widget = list_widget
+        self.list_widget = list_widget  # Can be None initially, set later
         self._initialize_bindings()
 
     def _initialize_bindings(self):
-        """Initialize key bindings using configuration or defaults."""
-        # Default key configuration
         default_config = {
             "exit": "esc",
             "help": "F1",
-            "view_main": "F2",
-            "view_music": "F3",
+            "view_main": "1",
+            "view_music": "2",
             "nav_up": "up",
             "nav_down": "down",
             "nav_right": "right",
@@ -74,6 +70,13 @@ class KeyHandler:
         self.add_binding(
             final_config["exit"], "Exit application", self._handle_exit, global_key=True
         )
+
+        self.add_binding(
+            final_config["exit"],
+            "Exit application",
+            self._handle_exit,
+        )
+
         self.add_binding(
             final_config["help"], "Show help", self._handle_help, global_key=True
         )
@@ -131,6 +134,8 @@ class KeyHandler:
         self.add_binding(
             final_config["nav_right"], "Focus metadata panel", self._handle_focus_panel
         )
+
+        self.add_binding("left", "Focus song list", self._handle_focus_list)
 
         # Playback controls
         self.add_binding(
@@ -257,20 +262,12 @@ class KeyHandler:
         # Validate input
         if not isinstance(key, str) or not key:
             return False
-        logger = logging.getLogger(__name__)
-        logger.debug(
-            f"KeyHandler.handle_key called with key='{key}', context='{widget_context}'"
-        )
-        logger.debug(f"Available global keys: {list(self.global_bindings.keys())}")
-        logger.debug(f"Available local keys: {list(self.bindings.keys())}")
 
         # Try global bindings first
         if key in self.global_bindings:
-            logger.debug(f"Found global binding for key '{key}'")
             binding = self.global_bindings[key]
             try:
                 binding.handler(*binding.args)
-                logger.debug(f"Successfully handled global key '{key}'")
                 return True
             except Exception as e:
                 logger = logging.getLogger(__name__)
@@ -279,20 +276,15 @@ class KeyHandler:
 
         # Try local bindings if not in global context
         if widget_context != "global" and key in self.bindings:
-            logger.debug(
-                f"Found local binding for key '{key}' in context '{widget_context}'"
-            )
             binding = self.bindings[key]
             try:
                 binding.handler(*binding.args)
-                logger.debug(f"Successfully handled local key '{key}'")
                 return True
             except Exception as e:
                 logger = logging.getLogger(__name__)
                 logger.error(f"Error handling local key '{key}': {e}")
                 return False
 
-        logger.debug(f"No binding found for key '{key}' in context '{widget_context}'")
         return False
 
     def get_help_text(self) -> str:
@@ -308,7 +300,7 @@ class KeyHandler:
 
         # Local shortcuts
         if self.bindings:
-            help_lines.append("List/Music Player (local keys):")
+            help_lines.append("Navigation & Media (local keys):")
             for key, binding in sorted(self.bindings.items()):
                 help_lines.append(f"  {key:15} - {binding.description}")
 
@@ -336,23 +328,41 @@ class KeyHandler:
             self.main_loop_manager.change_view(view_index)
 
     def _handle_navigation(self, direction: str):
-        """Handle navigation."""
+        """Handle navigation with wrap-around."""
         if self.list_widget:
             cursor_pos = self.list_widget.get_focus()[1]
+            max_pos = len(self.list_widget.body) - 1
+
             if direction == "up":
                 new_pos = cursor_pos - 1
+                # Wrap around to bottom if at top
+                if new_pos < 0:
+                    new_pos = max_pos
             elif direction == "down":
                 new_pos = cursor_pos + 1
+                # Wrap around to top if at bottom
+                if new_pos > max_pos:
+                    new_pos = 0
             else:
                 return
+
+            # Update metadata for new position and move focus
             self.list_widget._move_focus(new_pos)
+            self.list_widget.set_focus(new_pos)
 
     def _handle_focus_panel(self):
         """Handle panel focusing."""
-        if self.main_loop_manager and hasattr(self.main_loop_manager, "view_manager"):
-            main_view = self.main_loop_manager.view_manager.get_view("main")
-            if main_view and hasattr(main_view, "columns"):
-                main_view.columns.focus_col = 1
+        if self.list_widget and hasattr(self.list_widget, "display"):
+            display = self.list_widget.display
+            if display and hasattr(display, "columns"):
+                display.columns.focus_col = 1
+
+    def _handle_focus_list(self):
+        """Handle focusing back to song list."""
+        if self.list_widget and hasattr(self.list_widget, "display"):
+            display = self.list_widget.display
+            if display and hasattr(display, "columns"):
+                display.columns.focus_col = 0
 
     def _handle_playback(self, action: str):
         """Handle playback controls."""
@@ -374,11 +384,31 @@ class KeyHandler:
         elif action == "next":
             if self.list_widget:
                 cursor_pos = self.list_widget.get_focus()[1]
-                self.list_widget._play_next_song(cursor_pos)
+                # Use the wrap-around version
+                next_pos = cursor_pos + 1
+                max_pos = len(self.list_widget.body) - 1
+                if next_pos > max_pos:
+                    next_pos = 0
+                self.list_widget.set_focus(next_pos)
+                title, album, artist, album_art = state.viewInfo.songInfo(next_pos)
+                self.list_widget._update_metadata_panel(
+                    next_pos, title, album, artist, album_art
+                )
+                self.list_widget._play_song(next_pos)
         elif action == "prev":
             if self.list_widget:
                 cursor_pos = self.list_widget.get_focus()[1]
-                self.list_widget._play_previous_song(cursor_pos)
+                # Use the wrap-around version
+                prev_pos = cursor_pos - 1
+                max_pos = len(self.list_widget.body) - 1
+                if prev_pos < 0:
+                    prev_pos = max_pos
+                self.list_widget.set_focus(prev_pos)
+                title, album, artist, album_art = state.viewInfo.songInfo(prev_pos)
+                self.list_widget._update_metadata_panel(
+                    prev_pos, title, album, artist, album_art
+                )
+                self.list_widget._play_song(prev_pos)
 
     def _handle_volume(self, action: str):
         """Handle volume controls."""
@@ -409,7 +439,7 @@ class KeyHandler:
             main_view = self.main_loop_manager.view_manager.get_view("main")
             if main_view and hasattr(main_view, "footer"):
                 volume = int(player.get_volume() * 100)
-                status = "🔇 Muted" if volume == 0 else f"🔊 Volume: {volume}%"
+                status = "Muted" if volume == 0 else f"Volume: {volume}%"
                 main_view.footer.set_status(status)
 
                 import threading
@@ -438,7 +468,7 @@ class KeyHandler:
             main_view = self.main_loop_manager.view_manager.get_view("main")
             if main_view and hasattr(main_view, "footer"):
                 loop_enabled = player.get_loop()
-                status = "🔁 Loop: ON" if loop_enabled else "🔁 Loop: OFF"
+                status = "Loop: ON" if loop_enabled else "Loop: OFF"
                 main_view.footer.set_status(status)
 
                 import threading
