@@ -5,6 +5,7 @@ import threading
 import urwid
 
 from src.media import AudioPlayer
+from src.urwid_components.keyHandler import KeyHandler
 from src.urwid_components.viewManager import ViewManager
 
 logging.basicConfig(
@@ -22,7 +23,15 @@ class MainLoopManager:
 
         self.audio_player = AudioPlayer()
 
-        self.view_manager = ViewManager(self.change_view, self.audio_player)
+        self.view_manager = ViewManager(self.change_view, self.audio_player, None)
+
+        # Initialize KeyHandler after view_manager is created so we can access the list widget
+        self.key_handler = KeyHandler(
+            main_loop_manager=self, list_widget=self.view_manager.shared_song_list
+        )
+
+        # Update the view_manager's reference to the key_handler
+        self.view_manager.key_handler = self.key_handler
 
         initial_view = self.view_manager.get_initial_view()
         self.loop = urwid.MainLoop(
@@ -109,8 +118,14 @@ class MainLoopManager:
     def input_handler(self, key):
         logger.debug(f"Input handler: {key}")
         if isinstance(key, tuple) or isinstance(key, list):
-            pass
-        elif key == "esc":
+            return
+
+        # Use KeyHandler for global keys
+        if hasattr(self, "key_handler") and self.key_handler.handle_key(key, "global"):
+            return
+
+        # Fallback for any keys not handled by KeyHandler
+        if key == "esc":
             self.state.stop_event.set()
             raise urwid.ExitMainLoop()
         elif key.isdigit() and key in "123":

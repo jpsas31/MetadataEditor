@@ -10,10 +10,11 @@ state = BorgSingleton()
 class ViewManager:
     """Manages different views in the application."""
 
-    def __init__(self, change_view_callback, audio_player=None):
+    def __init__(self, change_view_callback, audio_player=None, key_handler=None):
         self.change_view_callback = change_view_callback
         self._widget_map = {}
         self.audio_player = audio_player
+        self.key_handler = key_handler
         self.views = {}
         self.view_order = []
         self.displays = []
@@ -25,7 +26,12 @@ class ViewManager:
 
         shared_footer = Footer()
         shared_walker = urwid.SimpleListWalker(self._generate_menu())
-        self.shared_song_list = ListMod(shared_walker, self.change_view_callback)
+        self.shared_song_list = ListMod(
+            shared_walker, self.change_view_callback, self.key_handler
+        )
+
+        if self.key_handler:
+            self.shared_song_list.key_handler = self.key_handler
 
         display = Display(
             audio_player=self.audio_player,

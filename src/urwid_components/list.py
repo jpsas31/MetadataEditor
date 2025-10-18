@@ -8,15 +8,21 @@ state = BorgSingleton()
 
 
 class ListMod(urwid.ListBox):
-    def __init__(self, body, changeView):
+    def __init__(self, body, changeView, key_handler=None):
         super().__init__(body)
         self.display = None
         self.changeView = changeView
+        self.key_handler = key_handler
 
     def set_display(self, display):
         self.display = display
 
     def keypress(self, size, key):
+        # Use KeyHandler for local keys if available, otherwise fall back to direct handling
+        if self.key_handler and self.key_handler.handle_key(key, "list"):
+            return
+
+        # Fallback to direct key handling for keys not handled by KeyHandler
         cursor_pos = self.get_focus()[1]
         self._handle_keypress(key, cursor_pos)
         super().keypress(size, key)
