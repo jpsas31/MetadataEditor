@@ -1,3 +1,4 @@
+import logging
 import queue
 import threading
 
@@ -5,6 +6,14 @@ import urwid
 
 from src.media import AudioPlayer
 from src.urwid_components.viewManager import ViewManager
+
+logging.basicConfig(
+    filename="/tmp/album_art_debug.log",
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filemode="w",
+)
+logger = logging.getLogger(__name__)
 
 
 class MainLoopManager:
@@ -17,7 +26,9 @@ class MainLoopManager:
 
         initial_view = self.view_manager.get_initial_view()
         self.loop = urwid.MainLoop(
-            initial_view, palette=self._get_palette(), unhandled_input=self.exit
+            initial_view,
+            palette=self._get_palette(),
+            unhandled_input=self.input_handler,
         )
 
         main_view = self.view_manager.get_view("main")
@@ -71,27 +82,41 @@ class MainLoopManager:
 
         self._schedule_message_check()
 
-    def change_view(self, index):
-        view = self.view_manager.get_view_by_index(index)
-        if view:
-            self.loop.widget = view
+    def change_view(self, index_or_song_name):
+        if isinstance(index_or_song_name, str):
+            song_name = index_or_song_name
+            for i in range(self.state.viewInfo.songsLen()):
+                if self.state.viewInfo.songFileName(i) == song_name:
+                    if hasattr(self.view_manager, "shared_song_list"):
+                        song_list = self.view_manager.shared_song_list
+                        song_list.set_focus(i)
+                        title, album, artist, album_art = self.state.viewInfo.songInfo(
+                            i
+                        )
+                        song_list._update_metadata_panel(
+                            i, title, album, artist, album_art
+                        )
+                    break
+        else:
+            index = index_or_song_name
+            view = self.view_manager.get_view_by_index(index)
+            if view:
+                self.loop.widget = view
 
-            self.loop.screen.clear()
-            self.loop.draw_screen()
+                self.loop.screen.clear()
+                self.loop.draw_screen()
 
-    def exit(self, key):
-        if isinstance(key, tuple):
+    def input_handler(self, key):
+        logger.debug(f"Input handler: {key}")
+        if isinstance(key, tuple) or isinstance(key, list):
             pass
         elif key == "esc":
             self.state.stop_event.set()
             raise urwid.ExitMainLoop()
-        elif key in "123":
-            try:
-                index = int(key) - 1
-                if 0 <= index < self.view_manager.get_view_count():
-                    self.change_view(index)
-            except StopIteration:
-                raise urwid.ExitMainLoop()
+        elif key.isdigit() and key in "123":
+            index = int(key) - 1
+            if 0 <= index < self.view_manager.get_view_count():
+                self.change_view(index)
 
     def start(self):
         self.loop.run()

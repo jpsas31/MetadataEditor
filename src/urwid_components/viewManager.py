@@ -95,8 +95,11 @@ class ViewManager:
         for i in range(state.viewInfo.songsLen()):
             song_name = state.viewInfo.songFileName(i)
             button = urwid.Button(song_name)
+
             urwid.connect_signal(
-                button, "click", self.change_view_callback, user_args=[song_name]
+                button,
+                "click",
+                lambda widget, name=song_name: self.change_view_callback(name),
             )
             widget = urwid.AttrMap(button, None, focus_map="reversed")
             body.append(widget)
