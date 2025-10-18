@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import urwid
 
 from src.singleton import BorgSingleton

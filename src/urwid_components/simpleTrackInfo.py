@@ -356,6 +356,6 @@ class SimpleTrackInfo(urwid.Pile):
 
         except Exception as e:
             logger.error(f"Exception in _update_album_art: {e}")
-            error_widget = urwid.Text(f"Error loading\nalbum art", align="center")
+            error_widget = urwid.Text("Error loading\nalbum art", align="center")
             filler_widget = self.contents[0][0].original_widget
             filler_widget._w = error_widget

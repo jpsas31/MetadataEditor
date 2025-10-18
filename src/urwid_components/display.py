@@ -5,7 +5,7 @@ import urwid
 from src.media import AudioPlayer
 from src.singleton import BorgSingleton
 from src.urwid_components.footer import Footer
-from src.urwid_components.metadataEditorPop import MetadataEditor
+from src.urwid_components.metadataEditor import MetadataEditor
 from src.urwid_components.youtubeEdit import CustomEdit
 
 state = BorgSingleton()
