@@ -192,18 +192,16 @@ class SimpleTrackInfo(urwid.Pile):
             [
                 (
                     "weight",
-                    3,
-                    urwid.LineBox(
-                        urwid.Filler(
-                            self.album_art_container,
-                            valign="middle",
-                        )
+                    4,
+                    urwid.Filler(
+                        self.album_art_container,
+                        valign="middle",
                     ),
                 ),
                 (
                     "weight",
-                    2,
-                    urwid.LineBox(urwid.Filler(metadata_pile, valign="middle")),
+                    1,
+                    urwid.Filler(metadata_pile, valign="middle"),
                 ),
             ]
         )
@@ -306,7 +304,7 @@ class SimpleTrackInfo(urwid.Pile):
                     img = Image.open(BytesIO(image_data))
                     ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-                    ascii_art = convert_pil(img, is_unicode=True, width=40)
+                    ascii_art = convert_pil(img, is_unicode=True, width=80)
                     logger.debug(f"ASCII art length: {len(ascii_art)}")
                     logger.debug(f"ASCII art first 100 chars: {ascii_art[:100]}")
                     logger.debug(

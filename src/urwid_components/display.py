@@ -2,7 +2,6 @@ import os
 
 import urwid
 
-from src.media import AudioPlayer
 from src.singleton import BorgSingleton
 from src.urwid_components.footer import Footer
 from src.urwid_components.metadataEditor import MetadataEditor
@@ -26,7 +25,7 @@ class Display:
         self.song_list = song_list
         self.song_list.set_display(self)
 
-        self.audio_player = audio_player if audio_player is not None else AudioPlayer()
+        self.audio_player = audio_player
 
         self.footer = footer if footer is not None else Footer()
 
@@ -35,13 +34,7 @@ class Display:
         )
 
         state.pilaMetadata = self.metadata_editor
-        self.info_panel = urwid.LineBox(self.metadata_editor, "Info")
-
-        # Make info_panel focusable
-        def info_panel_keypress(size, key):
-            return key
-
-        self.info_panel.keypress = info_panel_keypress
+        self.info_panel = urwid.LineBox(self.metadata_editor)
 
         self.text_info = urwid.Text("")
         self.url_input = CustomEdit("Escribe link: ", parent=self, multiline=True)
@@ -52,28 +45,24 @@ class Display:
                     urwid.Filler(urwid.LineBox(self.text_info, "")),
                 ]
             ),
-            "Youtubedl",
         )
-
-        # Make youtube_panel focusable
-        def youtube_panel_keypress(size, key):
-            return key
-
-        self.youtube_panel.keypress = youtube_panel_keypress
 
         # Create a focusable wrapper for the main panel
         class FocusablePile(urwid.Pile):
             def keypress(self, size, key):
-                # Handle focus navigation within the pile
-                if key in ("up", "down", "tab"):
-                    # Let the parent Pile handle focus navigation
-                    return super().keypress(size, key)
-                # For other keys, just return them
-                return key
+                # Allow switching between panels without stealing keys from children.
+                if key in ("tab",):
+                    self.focus_position = (self.focus_position + 1) % len(self.contents)
+                    return None
+                if key in ("shift tab", "backtab"):
+                    self.focus_position = (self.focus_position - 1) % len(self.contents)
+                    return None
+
+                return super().keypress(size, key)
 
         self.main_panel = FocusablePile([self.info_panel, self.youtube_panel])
         self.columns = urwid.Columns(
-            [urwid.LineBox(self.song_list, "Canciones"), self.main_panel],
+            [urwid.LineBox(self.song_list), self.main_panel],
             dividechars=4,
         )
         self.frame = urwid.Frame(self.columns, footer=self.footer)

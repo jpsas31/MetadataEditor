@@ -237,7 +237,7 @@ class AudioPlayer:
                 ):
                     self.is_playing_flag = False
             return self.is_playing_flag and not self.paused
-    
+
     def thread_play(self, update_position):
         """Thread loop for updating playback position."""
         while not self.state.stop_event.is_set():

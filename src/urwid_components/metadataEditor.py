@@ -76,7 +76,7 @@ class MetadataEditor(CascadingBoxes):
         try:
             img = self.modifier.get_cover()
             if img is not None:
-                ansi = ANSIWidget(convert_pil(img, is_unicode=True, width=60))
+                ansi = ANSIWidget(convert_pil(img, is_unicode=True, width=80))
                 body = urwid.Pile([ansi])
                 return body
         except Exception as e:
