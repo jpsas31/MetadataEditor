@@ -1,9 +1,8 @@
-import logging
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, Mapping
-
 
 logger = logging.getLogger(__name__)
 
@@ -104,4 +103,3 @@ def load_keybinds_config() -> Dict[str, Dict[str, str]]:
     except Exception as e:
         logger.warning(f"Failed to load keybinds config from {path}: {e}")
         return {}
-
