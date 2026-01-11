@@ -27,7 +27,10 @@ class ViewManager:
         shared_footer = Footer()
         shared_walker = urwid.SimpleListWalker(self._generate_menu())
         self.shared_song_list = ListMod(
-            shared_walker, self.change_view_callback, self.key_handler
+            shared_walker,
+            self.change_view_callback,
+            self.audio_player,
+            self.key_handler,
         )
 
         if self.key_handler:
@@ -55,10 +58,10 @@ class ViewManager:
 
         simple_track_info = SimpleTrackInfo()
 
-        simple_info_panel = urwid.LineBox(simple_track_info, "Track Info")
+        simple_info_panel = simple_track_info
 
         simple_columns = urwid.Columns(
-            [urwid.LineBox(simple_display.song_list, "Canciones"), simple_info_panel],
+            [urwid.LineBox(simple_display.song_list), simple_info_panel],
             dividechars=4,
         )
         simple_frame = urwid.Frame(simple_columns, footer=simple_display.footer)
@@ -82,6 +85,24 @@ class ViewManager:
         if 0 <= index < len(self.view_order):
             key = self.view_order[index]
             self.shared_song_list.set_display(self.displays[index])
+            # Ensure the active display panels show metadata for the current/first item.
+            try:
+                if state.viewInfo.songsLen() > 0:
+                    pos = getattr(self.shared_song_list, "focus_position", 0)
+                    if (
+                        not isinstance(pos, int)
+                        or pos < 0
+                        or pos >= state.viewInfo.songsLen()
+                    ):
+                        pos = 0
+                        self.shared_song_list.set_focus(pos)
+
+                    title, album, artist, album_art = state.viewInfo.songInfo(pos)
+                    self.shared_song_list._update_metadata_panel(
+                        pos, title, album, artist, album_art
+                    )
+            except Exception:
+                pass
             return self.views[key]["widget"]
         return None
 

@@ -4,8 +4,11 @@ import threading
 
 import urwid
 
+from src.keybindsConfig import load_keybinds_config
 from src.media import AudioPlayer
-from src.urwid_components.keyHandler import KeyHandler
+
+# from src.keyHandler import KeyHandler
+from src.newkeyhandler import CTX_GLOBAL, KeyHandler
 from src.urwid_components.viewManager import ViewManager
 
 logging.basicConfig(
@@ -20,12 +23,10 @@ logger = logging.getLogger(__name__)
 class MainLoopManager:
     def __init__(self, state):
         self.state = state
-
-        self.audio_player = AudioPlayer()
-
         # Initialize KeyHandler first (without list_widget reference)
-        self.key_handler = KeyHandler(main_loop_manager=self)
-
+        self.key_handler = KeyHandler(config=load_keybinds_config())
+        self.audio_player = AudioPlayer()
+        self.initialize_key_handler()
         # Create ViewManager with KeyHandler
         self.view_manager = ViewManager(
             self.change_view, self.audio_player, self.key_handler
@@ -35,7 +36,7 @@ class MainLoopManager:
         self.loop = urwid.MainLoop(
             initial_view,
             palette=self._get_palette(),
-            unhandled_input=self.input_handler,
+            unhandled_input=self._unhandled_input,
         )
 
         main_view = self.view_manager.get_view("main")
@@ -55,6 +56,30 @@ class MainLoopManager:
             ).start()
 
         self._schedule_message_check()
+
+    def initialize_key_handler(self):
+        """Initialize the key handler."""
+        self.key_handler.register_action(
+            "app_exit", self._handle_exit, needs_context=False
+        )
+        self.key_handler.register_action(
+            "show_help", self._handle_help, needs_context=False
+        )
+        self.key_handler.register_action(
+            "view_switch_0", lambda: self.change_view(0), needs_context=False
+        )
+        self.key_handler.register_action(
+            "view_switch_1", lambda: self.change_view(1), needs_context=False
+        )
+        self.key_handler.register_action(
+            "view_switch_2", lambda: self.change_view(2), needs_context=False
+        )
+
+    def _unhandled_input(self, key):
+        """Handle unhandled input at the top level."""
+        if self.key_handler.handle_key(key, CTX_GLOBAL):
+            return True
+        return key
 
     def _get_palette(self):
         """Get the color palette for the application."""
@@ -113,23 +138,17 @@ class MainLoopManager:
                 self.loop.screen.clear()
                 self.loop.draw_screen()
 
-    def input_handler(self, key):
-        logger.debug(f"Input handler: {key}")
-        if isinstance(key, tuple) or isinstance(key, list):
-            return
+    def _handle_exit(self):
+        """Handle exit key."""
+        self.state.stop_event.set()
+        raise urwid.ExitMainLoop()
 
-        # Use KeyHandler for global keys
-        if hasattr(self, "key_handler") and self.key_handler.handle_key(key, "global"):
-            return
-
-        # Fallback for any keys not handled by KeyHandler
-        if key == "esc":
-            self.state.stop_event.set()
-            raise urwid.ExitMainLoop()
-        elif key.isdigit() and key in "123":
-            index = int(key) - 1
-            if 0 <= index < self.view_manager.get_view_count():
-                self.change_view(index)
+    def _handle_help(self):
+        """Handle help key."""
+        if hasattr(self, "view_manager"):
+            main_view = self.view_manager.get_view("main")
+            if main_view and hasattr(main_view, "footer"):
+                main_view.footer.set_status("Press F1 for help | ESC to exit")
 
     def start(self):
         self.loop.run()

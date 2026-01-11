@@ -1,162 +1,210 @@
 import os
+import threading
+import time
 
 import urwid
 
+from src.newkeyhandler import CTX_LIST
 from src.singleton import BorgSingleton
 
 state = BorgSingleton()
 
 
 class ListMod(urwid.ListBox):
-    def __init__(self, body, changeView, key_handler=None):
+    def __init__(self, body, changeView, audio_player=None, key_handler=None):
         super().__init__(body)
         self.display = None
         self.changeView = changeView
+        self.audio_player = audio_player
         self.key_handler = key_handler
+        self._last_volume = 1.0
+        if self.key_handler:
+            self.initialize_key_handler()
+
+    def initialize_key_handler(self):
+        """Initialize the key handler with context-aware actions."""
+        self.key_handler.register_action(
+            "nav_up", self._handle_navigation_up, needs_context=True
+        )
+        self.key_handler.register_action(
+            "nav_down", self._handle_navigation_down, needs_context=True
+        )
+        self.key_handler.register_action(
+            "nav_right", self._handle_focus_panel, needs_context=False
+        )
+        self.key_handler.register_action(
+            "nav_left", self._handle_focus_list, needs_context=False
+        )
+        self.key_handler.register_action(
+            "delete", self._delete_song, needs_context=True
+        )
+
+        self.key_handler.register_action(
+            "playback_toggle", self._handle_playback_toggle, needs_context=False
+        )
+        self.key_handler.register_action(
+            "playback_play", self._handle_playback_play, needs_context=True
+        )
+        self.key_handler.register_action(
+            "playback_stop", self._handle_playback_stop, needs_context=False
+        )
+        self.key_handler.register_action(
+            "playback_next", self._play_next_song, needs_context=True
+        )
+        self.key_handler.register_action(
+            "playback_prev", self._play_previous_song, needs_context=True
+        )
+        self.key_handler.register_action(
+            "volume_up", self._handle_volume_up, needs_context=False
+        )
+        self.key_handler.register_action(
+            "volume_down", self._handle_volume_down, needs_context=False
+        )
+        self.key_handler.register_action(
+            "volume_mute", self._handle_volume_mute, needs_context=False
+        )
+        self.key_handler.register_action(
+            "volume_toggle_mute", self._handle_volume_toggle_mute, needs_context=False
+        )
+        self.key_handler.register_action(
+            "loop_toggle", self._handle_loop, needs_context=False
+        )
 
     def set_display(self, display):
         self.display = display
 
     def keypress(self, size, key):
-        # Use KeyHandler for local keys if available, otherwise fall back to direct handling
-        if self.key_handler:
-            if self.key_handler.handle_key(key, "list"):
-                return
+        """Handle key press with context awareness."""
+        focus_widget, cursor_pos = self.get_focus()
 
-        # Fallback to direct key handling for keys not handled by KeyHandler
-        cursor_pos = self.get_focus()[1]
-        self._handle_keypress(key, cursor_pos)
-        super().keypress(size, key)
+        context = {
+            "cursor_pos": cursor_pos,
+            "widget": self,
+            "focus_widget": focus_widget,
+            "size": size,
+        }
 
-    def _handle_keypress(self, key, cursor_pos):
-        """
-        Handle keyboard shortcuts for navigation and media controls.
+        if self.key_handler and self.key_handler.handle_key(key, CTX_LIST, context):
+            return
 
-        Navigation:
-            up/down: Move focus
-            right: Focus metadata panel
-            1/2/3: Switch views
-            esc: Exit
+        return super().keypress(size, key)
 
-        Playback:
-            s: Play/Pause toggle
-            a: Play selected song
-            p: Stop playback
-            n: Next song
-            b: Previous song (back)
+    def _handle_navigation_up(self, context):
+        """Handle up navigation with wrap-around."""
+        cursor_pos = context.get("cursor_pos", 0)
+        new_pos = cursor_pos - 1
+        if new_pos < 0:
+            new_pos = len(self.body) - 1
+        self._move_focus(new_pos)
 
-        Loop:
-            l: Toggle loop mode
+    def _handle_navigation_down(self, context):
+        """Handle down navigation with wrap-around."""
+        cursor_pos = context.get("cursor_pos", 0)
+        new_pos = cursor_pos + 1
+        if new_pos >= len(self.body):
+            new_pos = 0
+        self._move_focus(new_pos)
 
-        Other:
-            delete: Delete song
-        """
-        player = self.display.audio_player
-
-        # Navigation with wrap-around
-        if key == "down":
-            new_pos = cursor_pos + 1
-            if new_pos >= len(self.body):
-                new_pos = 0  # Wrap to top
-            self._move_focus(new_pos)
-        elif key == "up":
-            new_pos = cursor_pos - 1
-            if new_pos < 0:
-                new_pos = len(self.body) - 1  # Wrap to bottom
-            self._move_focus(new_pos)
-        elif key == "right":
+    def _handle_focus_panel(self):
+        """Handle panel focusing."""
+        if self.display and hasattr(self.display, "columns"):
             self.display.columns.focus_col = 1
-        elif key == "left":
+
+    def _handle_focus_list(self):
+        """Handle focusing back to song list."""
+        if self.display and hasattr(self.display, "columns"):
             self.display.columns.focus_col = 0
-        elif key == "esc":
-            state.stop_event.set()
-            raise urwid.ExitMainLoop()
-        elif key in "123":
-            try:
-                self.changeView(int(key) - 1)
-            except StopIteration:
-                raise urwid.ExitMainLoop()
 
-        # File operations
-        elif key == "delete":
-            self._delete_song(cursor_pos)
+    def _delete_song(self, context):
+        """Delete song at cursor position."""
+        cursor_pos = context.get("cursor_pos", 0)
+        file_name = state.viewInfo.songFileName(cursor_pos)
+        if os.path.isfile(file_name):
+            os.remove(file_name)
+            if self.display:
+                self.display._update_song_list()
 
-        # Playback controls
-        elif key == "s":
-            player.resume_pause()
-        elif key == "a":
-            self._play_song(cursor_pos)
-        elif key == "p":
-            player.stop()
-        elif key == "n":
-            self._play_next_song(cursor_pos)
-        elif key == "b":
-            self._play_previous_song(cursor_pos)
+    def _handle_playback_toggle(self):
+        """Toggle play/pause."""
+        if self.audio_player:
+            self.audio_player.resume_pause()
 
-        # Volume controls
-        elif key in ("+", "="):
-            current_vol = player.get_volume()
-            player.set_volume(min(1.0, current_vol + 0.1))
+    def _handle_playback_play(self, context):
+        """Play song at cursor position."""
+        cursor_pos = context.get("cursor_pos", 0)
+        self._play_song(cursor_pos)
+
+    def _handle_playback_stop(self):
+        """Stop playback."""
+        if self.audio_player:
+            self.audio_player.stop()
+
+    def _handle_volume_up(self):
+        """Increase volume."""
+        if self.audio_player:
+            current_vol = self.audio_player.get_volume()
+            self.audio_player.set_volume(min(1.0, current_vol + 0.1))
             self._show_volume_feedback()
-        elif key == "-":
-            current_vol = player.get_volume()
-            player.set_volume(max(0.0, current_vol - 0.1))
+
+    def _handle_volume_down(self):
+        """Decrease volume."""
+        if self.audio_player:
+            current_vol = self.audio_player.get_volume()
+            self.audio_player.set_volume(max(0.0, current_vol - 0.1))
             self._show_volume_feedback()
-        elif key == "0":
-            player.set_volume(0.0)
+
+    def _handle_volume_mute(self):
+        """Mute volume."""
+        if self.audio_player:
+            self.audio_player.set_volume(0.0)
             self._show_volume_feedback()
-        elif key == "m":
-            # Toggle mute
-            if player.get_volume() > 0:
-                self._last_volume = player.get_volume()
-                player.set_volume(0.0)
+
+    def _handle_volume_toggle_mute(self):
+        """Toggle mute."""
+        if self.audio_player:
+            if self.audio_player.get_volume() > 0:
+                self._last_volume = self.audio_player.get_volume()
+                self.audio_player.set_volume(0.0)
             else:
-                player.set_volume(getattr(self, "_last_volume", 1.0))
+                self.audio_player.set_volume(self._last_volume)
             self._show_volume_feedback()
 
-        # Loop control
-        elif key == "l":
-            player.set_loop(not player.get_loop())
+    def _handle_loop(self):
+        """Toggle loop mode."""
+        if self.audio_player:
+            self.audio_player.set_loop(not self.audio_player.get_loop())
             self._show_loop_feedback()
 
     def _show_volume_feedback(self):
         """Show volume level in footer (temporary feedback)."""
-        if hasattr(self.display, "footer"):
-            volume = int(self.display.audio_player.get_volume() * 100)
+        if self.display and hasattr(self.display, "footer"):
+            volume = int(self.audio_player.get_volume() * 100)
             status = "Muted" if volume == 0 else f"Volume: {volume}%"
             self.display.footer.set_status(status)
 
-            import threading
-
             def clear_status():
-                import time
-
                 time.sleep(2)
-                if hasattr(self.display, "footer"):
+                if self.display and hasattr(self.display, "footer"):
                     self.display.footer.clear_status()
 
             threading.Thread(target=clear_status, daemon=True).start()
 
     def _show_loop_feedback(self):
         """Show loop mode status in footer (temporary feedback)."""
-        if hasattr(self.display, "footer"):
-            loop_enabled = self.display.audio_player.get_loop()
+        if self.display and hasattr(self.display, "footer"):
+            loop_enabled = self.audio_player.get_loop()
             status = "Loop: ON" if loop_enabled else "Loop: OFF"
             self.display.footer.set_status(status)
 
-            import threading
-
             def clear_status():
-                import time
-
                 time.sleep(2)
-                if hasattr(self.display, "footer"):
+                if self.display and hasattr(self.display, "footer"):
                     self.display.footer.clear_status()
 
             threading.Thread(target=clear_status, daemon=True).start()
 
     def _move_focus(self, new_pos):
-        # Handle wrap-around positions
+        """Move focus to new position and update metadata."""
         max_pos = len(self.body) - 1
         if new_pos > max_pos:
             new_pos = 0
@@ -164,19 +212,14 @@ class ListMod(urwid.ListBox):
             new_pos = max_pos
 
         if 0 <= new_pos <= max_pos:
+            self.set_focus(new_pos)
             title, album, artist, album_art = state.viewInfo.songInfo(new_pos)
             self._update_metadata_panel(new_pos, title, album, artist, album_art)
-
-    def _delete_song(self, pos):
-        file_name = state.viewInfo.songFileName(pos)
-        if os.path.isfile(file_name):
-            os.remove(file_name)
-            self.display._update_song_list()
 
     def _play_song(self, pos):
         """Play song at the given position and update footer."""
         file_name = state.viewInfo.songFileName(pos)
-        self.display.audio_player.set_media(file_name)
+        self.audio_player.set_media(file_name)
 
         try:
             title, album, artist, _ = state.viewInfo.songInfo(pos)
@@ -189,14 +232,15 @@ class ListMod(urwid.ListBox):
         except Exception:
             display_text = os.path.basename(file_name)
 
-        self.display.footer.set_text(display_text)
+        if self.display and hasattr(self.display, "footer"):
+            self.display.footer.set_text(display_text)
 
-    def _play_next_song(self, current_pos):
+    def _play_next_song(self, context):
         """Play the next song in the list with wrap-around."""
+        current_pos = context.get("cursor_pos", 0)
         next_pos = current_pos + 1
         max_pos = state.viewInfo.songsLen() - 1
 
-        # Wrap around to beginning if at end
         if next_pos > max_pos:
             next_pos = 0
 
@@ -205,12 +249,12 @@ class ListMod(urwid.ListBox):
         self._update_metadata_panel(next_pos, title, album, artist, album_art)
         self._play_song(next_pos)
 
-    def _play_previous_song(self, current_pos):
+    def _play_previous_song(self, context):
         """Play the previous song in the list with wrap-around."""
+        current_pos = context.get("cursor_pos", 0)
         prev_pos = current_pos - 1
         max_pos = state.viewInfo.songsLen() - 1
 
-        # Wrap around to end if at beginning
         if prev_pos < 0:
             prev_pos = max_pos
 
@@ -220,7 +264,8 @@ class ListMod(urwid.ListBox):
         self._play_song(prev_pos)
 
     def _update_metadata_panel(self, pos, title, album, artist, album_art):
-        if hasattr(self.display, "metadata_editor"):
+        """Update the metadata panel with song information."""
+        if self.display and hasattr(self.display, "metadata_editor"):
             self.display.metadata_editor.contents[1].set_text(
                 state.viewInfo.songFileName(pos)
             )
@@ -231,6 +276,6 @@ class ListMod(urwid.ListBox):
                 album_art
             )
 
-        if hasattr(self.display, "simple_track_info"):
+        if self.display and hasattr(self.display, "simple_track_info"):
             song_filename = state.viewInfo.songFileName(pos)
             self.display.simple_track_info.update_track(song_filename)
