@@ -1,41 +1,19 @@
-import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Dict, Mapping
 
 logger = logging.getLogger(__name__)
 
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:  # pragma: no cover
+    tomllib = None
 
-DEFAULT_KEYBINDS_JSON = """\
-{
-  "global": {
-    "esc": "app_exit",
-    "F1": "show_help",
-    "1": "view_switch_0",
-    "2": "view_switch_1",
-    "3": "view_switch_2"
-  },
-  "list": {
-    "up": "nav_up",
-    "down": "nav_down",
-    "right": "nav_right",
-    "left": "nav_left",
-    "s": "playback_toggle",
-    "a": "playback_play",
-    "p": "playback_stop",
-    "n": "playback_next",
-    "b": "playback_prev",
-    "+": "volume_up",
-    "=": "volume_up",
-    "-": "volume_down",
-    "0": "volume_mute",
-    "m": "volume_toggle_mute",
-    "l": "loop_toggle",
-    "delete": "delete"
-  }
-}
-"""
+
+def _repo_default_keybinds_path() -> Path:
+    return Path(__file__).resolve().with_name("default_keybinds.toml")
 
 
 def get_config_dir() -> Path:
@@ -51,16 +29,85 @@ def get_config_dir() -> Path:
 
 
 def get_keybinds_path() -> Path:
-    return get_config_dir() / "keybinds.json"
+    return get_config_dir() / "keybinds.toml"
+
+
+def _is_valid_toml_key(key: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9_-]+", key))
+
+
+def _toml_quote_key(key: str) -> str:
+    if _is_valid_toml_key(key):
+        return key
+    return '"' + key.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _toml_quote_value(value: str) -> str:
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _keybinds_to_toml(data: Dict[str, Dict[str, str]]) -> str:
+    """Serialize context->(key->action) mapping into a simple TOML string."""
+    lines: list[str] = [
+        "# MetadataEditor keybinds",
+        "# Contexts: [global], [list], ...",
+        "",
+    ]
+
+    for ctx in sorted(data.keys()):
+        lines.append(f"[{ctx}]")
+        mapping = data.get(ctx, {})
+        for key in sorted(mapping.keys()):
+            action = mapping[key]
+            lines.append(f"{_toml_quote_key(key)} = {_toml_quote_value(action)}")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _migrate_json_to_toml_if_present(toml_path: Path) -> bool:
+    """
+    If an old keybinds.json exists, convert it into keybinds.toml.
+    Returns True if migration succeeded.
+    """
+    json_path = toml_path.with_suffix(".json")
+    if not json_path.exists():
+        return False
+
+    try:
+        import json  # local import to keep TOML path clean
+
+        raw = json.loads(json_path.read_text(encoding="utf-8"))
+        data = _validate_keybinds_shape(raw)
+        if not data:
+            return False
+
+        toml_path.write_text(_keybinds_to_toml(data), encoding="utf-8")
+        logger.info(f"Migrated keybinds.json -> keybinds.toml at: {toml_path}")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed migrating {json_path} -> {toml_path}: {e}")
+        return False
 
 
 def ensure_default_keybinds_file(path: Path) -> None:
-    """Create the keybinds config file with defaults if it doesn't exist."""
+    """Create the keybinds config file with repo defaults if it doesn't exist."""
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
-            path.write_text(DEFAULT_KEYBINDS_JSON, encoding="utf-8")
-            logger.info(f"Created default keybinds config at: {path}")
+            if _migrate_json_to_toml_if_present(path):
+                return
+
+            repo_default = _repo_default_keybinds_path()
+            if repo_default.exists():
+                path.write_text(
+                    repo_default.read_text(encoding="utf-8"), encoding="utf-8"
+                )
+                logger.info(f"Copied default keybinds config to: {path}")
+            else:
+                logger.warning(
+                    f"Repo default keybinds file missing at {repo_default}; leaving {path} uncreated."
+                )
     except Exception as e:
         logger.warning(f"Failed to create default keybinds config at {path}: {e}")
 
@@ -96,7 +143,13 @@ def load_keybinds_config() -> Dict[str, Dict[str, str]]:
     ensure_default_keybinds_file(path)
 
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        if tomllib is None:  # pragma: no cover
+            logger.warning(
+                "tomllib is not available; cannot read TOML keybinds config."
+            )
+            return {}
+
+        raw = tomllib.loads(path.read_text(encoding="utf-8"))
         return _validate_keybinds_shape(raw)
     except FileNotFoundError:
         return {}

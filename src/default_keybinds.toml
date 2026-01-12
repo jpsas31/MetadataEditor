@@ -1,0 +1,30 @@
+# MetadataEditor keybinds
+# Contexts:
+# - [global]: works anywhere
+# - [list]: works when focus is on the song list
+
+[global]
+esc = "app_exit"
+F1 = "show_help"
+"1" = "view_switch_0"
+"2" = "view_switch_1"
+"3" = "view_switch_2"
+
+[list]
+up = "nav_up"
+down = "nav_down"
+right = "nav_right"
+left = "nav_left"
+s = "playback_toggle"
+a = "playback_play"
+p = "playback_stop"
+n = "playback_next"
+b = "playback_prev"
+"+" = "volume_up"
+"=" = "volume_up"
+"-" = "volume_down"
+"0" = "volume_mute"
+m = "volume_toggle_mute"
+l = "loop_toggle"
+delete = "delete"
+
