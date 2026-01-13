@@ -1,3 +1,4 @@
+import subprocess
 import time
 from threading import Lock, Thread
 
@@ -31,12 +32,13 @@ class AudioPlayer:
         self.lock = Lock()
         self._start_time = 0
         self._pause_time = 0
-        self._seek_position = 0  # Track seek offset in milliseconds
         self._volume = 1.0  # Volume level (0.0 to 1.0)
         self._playback_speed = 1.0  # Playback speed multiplier
         self._loop_enabled = False  # Loop playback
         self._sample_rate = 44100
         self._num_channels = 2
+        self._sample_width = 2
+        self.ffmpegInstance = None
 
     def set_media(self, file_name):
         """Load and play an audio file using streaming for better performance."""
@@ -46,7 +48,6 @@ class AudioPlayer:
         # Load and start playback in background thread
         def load_and_play():
             try:
-                # Get file info first (quick operation)
                 file_info = miniaudio.get_file_info(file_name)
 
                 with self.lock:
@@ -55,7 +56,6 @@ class AudioPlayer:
                     self.play_position = 0
                     self.paused = False
                     self._start_time = time.time() * 1000
-                    self._seek_position = 0
                     self._sample_rate = file_info.sample_rate
                     self._num_channels = file_info.nchannels
 
@@ -67,6 +67,7 @@ class AudioPlayer:
 
             except Exception as e:
                 print(f"Error loading media file {file_name}: {e}")
+
                 self.is_playing_flag = False
 
         # Run in daemon thread so it doesn't block UI
@@ -87,8 +88,11 @@ class AudioPlayer:
                 sample_rate=self._sample_rate, nchannels=self._num_channels
             )
             self.is_playing_flag = True
-            stream = miniaudio.stream_file(self.current_file, seek_frame=start_frame)
-            self.device.start(stream)
+            if self.ffmpegInstance:
+                self.ffmpegInstance.terminate()
+                self.ffmpegInstance = None
+
+            self.ffmpeg_stream_pcm(start_frame)
 
         except Exception as e:
             print(f"Error starting playback: {e}")
@@ -110,8 +114,11 @@ class AudioPlayer:
             )
             self.is_playing_flag = True
 
-            stream = miniaudio.stream_file(self.current_file)
-            self.device.start(stream)
+            if self.ffmpegInstance:
+                self.ffmpegInstance.terminate()
+                self.ffmpegInstance = None
+
+            self.ffmpeg_stream_pcm(0)
 
         except Exception as e:
             print(f"Error starting streaming playback: {e}")
@@ -123,21 +130,16 @@ class AudioPlayer:
         def do_play():
             with self.lock:
                 if self.paused and self.device:
-                    # Resume from pause
                     resume_time = time.time() * 1000
                     self._start_time += resume_time - self._pause_time
                     self.paused = False
-                    # Restart playback from current position
-                    current_pos_ms = (
-                        self._pause_time - self._start_time + self._seek_position
-                    )
-                    start_frame = int((current_pos_ms / 1000.0) * self._sample_rate)
+
+                    current_pos_ms = self._pause_time - self._start_time
+                    start_frame = int((current_pos_ms / 1000.0))
                     self._start_playback(start_frame)
                 elif not self.is_playing_flag and self.current_file:
-                    # Restart from beginning
-                    pass  # set_media already runs async
+                    pass
 
-            # If no current file and not paused, call set_media
             if not self.paused and not self.is_playing_flag and self.current_file:
                 self.set_media(self.current_file)
 
@@ -160,7 +162,6 @@ class AudioPlayer:
         """Toggle between play and pause."""
         with self.lock:
             if self.paused or not self.is_playing_flag:
-                # Release lock before calling play (which acquires it)
                 pass
         if self.paused or not self.is_playing_flag:
             self.play()
@@ -180,40 +181,25 @@ class AudioPlayer:
                     pass
                 self.device = None
             self.play_position = 0
-            self._seek_position = 0
 
     def set_volume(self, volume):
-        """
-        Set playback volume.
-
-        Args:
-            volume: Volume level from 0.0 (silent) to 1.0 (full volume)
-        """
         self._volume = max(0.0, min(1.0, volume))
 
     def get_volume(self):
-        """Get current volume level (0.0 to 1.0)."""
         return self._volume
 
     def set_loop(self, enabled):
-        """
-        Enable or disable loop mode.
-
-        Args:
-            enabled: True to loop, False to play once
-        """
         self._loop_enabled = enabled
 
     def get_loop(self):
-        """Check if loop mode is enabled."""
         return self._loop_enabled
 
     def get_play_position(self):
         """Get current playback position in milliseconds."""
         if self.paused:
-            return int(self._pause_time - self._start_time + self._seek_position)
+            return int(self._pause_time - self._start_time)
         if self.is_playing_flag:
-            return int((time.time() * 1000) - self._start_time + self._seek_position)
+            return int((time.time() * 1000) - self._start_time)
         return self.play_position
 
     def get_duration(self):
@@ -221,7 +207,7 @@ class AudioPlayer:
         return self.sound_length
 
     def get_progress(self):
-        """Get playback progress as percentage (0.0 to 100.0)."""
+        """Get playback progress as percentage"""
         if self.sound_length == 0:
             return 0.0
         return (self.get_play_position() / self.sound_length) * 100.0
@@ -229,7 +215,6 @@ class AudioPlayer:
     def is_playing(self):
         """Check if audio is currently playing."""
         with self.lock:
-            # Check if we've exceeded the sound length (and not looping)
             if not self._loop_enabled:
                 if (
                     self.is_playing_flag
@@ -243,7 +228,47 @@ class AudioPlayer:
         while not self.state.stop_event.is_set():
             if self.is_playing():
                 update_position(self.sound_length, self.get_play_position())
-            time.sleep(0.1)  # Update every 100ms
+            time.sleep(0.01)
 
-        # Cleanup on exit
+    
         self.stop()
+
+    def stream_pcm(self, source):
+        required_frames = yield b""
+        while True:
+            required_bytes = required_frames * self._num_channels * self._sample_width
+            sample_data = source.read(required_bytes)
+            if not sample_data:
+                break
+
+            required_frames = yield sample_data
+
+    def ffmpeg_stream_pcm(self, start_frame):
+        self.ffmpegInstance = subprocess.Popen(
+            [
+                "ffmpeg",
+                "-v",
+                "fatal",
+                "-hide_banner",
+                "-nostdin",
+                "-i",
+                self.current_file,
+                "-ss",
+                str(start_frame),
+                "-f",
+                "s16le",
+                "-acodec",
+                "pcm_s16le",
+                "-ac",
+                str(self._num_channels),
+                "-ar",
+                str(self._sample_rate),
+                "-",
+            ],
+            stdin=None,
+            stdout=subprocess.PIPE,
+        )
+
+        stream = self.stream_pcm(self.ffmpegInstance.stdout)
+        next(stream)
+        self.device.start(stream)
