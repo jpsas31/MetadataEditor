@@ -97,15 +97,3 @@ class ANSIWidget(urwid.Widget):
         """Return the natural size of the widget (width, height)."""
         return (self._display_width, len(self.lines))
 
-
-if __name__ == "__main__":
-    txt = "\x1b[34;47mHello World\x1b[0m"
-
-    urwid.MainLoop(
-        urwid.Pile(
-            [
-                urwid.Filler(urwid.Text(f"TextWidget: {txt}")),
-                urwid.Filler(ANSIWidget(f"ANSIWidget: {txt}")),
-            ]
-        )
-    ).run()

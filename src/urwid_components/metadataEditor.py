@@ -4,13 +4,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Semaphore
 
 import urwid
-from climage import convert_pil
 
 import src.tagModifier as tagModifier
 from src.singleton import BorgSingleton
-from src.urwid_components.ansiWidget import ANSIWidget
 from src.urwid_components.editorBox import EditorBox
-
 
 state = BorgSingleton()
 
@@ -28,7 +25,6 @@ class MetadataEditor(urwid.WidgetPlaceholder):
         self._update_modifier()
         self._initialize_ui(top_widget_name)
         self.original_widget = urwid.ListBox(urwid.SimpleFocusListWalker(self.contents))
-        
 
     def keypress(self, size, key):
         """Handle keypress events for the metadata editor."""
@@ -47,7 +43,7 @@ class MetadataEditor(urwid.WidgetPlaceholder):
             self._create_edit_widget("", "artist"),
             self._create_button("Set Cover", self.set_cover),
             self._create_button("Auto-fill Fields", self.fill_fields),
-            self._create_button("Auto-fill for All Songs",   self.automatic_cover),            
+            self._create_button("Auto-fill for All Songs", self.automatic_cover),
         ]
 
     def _create_title_widget(self, text):
@@ -67,17 +63,6 @@ class MetadataEditor(urwid.WidgetPlaceholder):
             tag=tag,
             modifier=self.get_modifier,
         )
-
-    def get_cover(self):
-        try:
-            img = self.modifier.get_cover()
-            if img is not None:
-                ansi = ANSIWidget(convert_pil(img, is_unicode=True, width=80))
-                body = urwid.Pile([ansi])
-                return body
-        except Exception as e:
-            print(f"Error getting cover: {e}")
-        return urwid.Filler(urwid.Text("No Album Cover Found"))
 
     def get_modifier(self):
         self._update_modifier()
