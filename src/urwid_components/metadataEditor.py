@@ -10,7 +10,7 @@ import src.tagModifier as tagModifier
 from src.singleton import BorgSingleton
 from src.urwid_components.ansiWidget import ANSIWidget
 from src.urwid_components.editorBox import EditorBox
-from src.urwid_components.popupMenu import CascadingBoxes, popup
+
 
 state = BorgSingleton()
 
@@ -19,7 +19,7 @@ MUSICBRAINZ_RATE_LIMIT = Semaphore(4)
 PARALLEL_WORKERS = 10
 
 
-class MetadataEditor(CascadingBoxes):
+class MetadataEditor(urwid.WidgetPlaceholder):
     def __init__(self, song_list, top_widget_name, footer=None):
         self.song_list = song_list
         self.modifier = None
@@ -27,7 +27,8 @@ class MetadataEditor(CascadingBoxes):
         self.fill_progress = urwid.ProgressBar("normal", "complete")
         self._update_modifier()
         self._initialize_ui(top_widget_name)
-        super().__init__(self.contents)
+        self.original_widget = urwid.ListBox(urwid.SimpleFocusListWalker(self.contents))
+        
 
     def keypress(self, size, key):
         """Handle keypress events for the metadata editor."""
@@ -46,12 +47,7 @@ class MetadataEditor(CascadingBoxes):
             self._create_edit_widget("", "artist"),
             self._create_button("Set Cover", self.set_cover),
             self._create_button("Auto-fill Fields", self.fill_fields),
-            popup(
-                "Auto-fill for All Songs",
-                [self.fill_progress],
-                self.automatic_cover,
-                top_widget_name,
-            ),
+            self._create_button("Auto-fill for All Songs",   self.automatic_cover),            
         ]
 
     def _create_title_widget(self, text):
