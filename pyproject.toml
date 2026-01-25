@@ -45,3 +45,28 @@ name = "metadataeditor"
 version = "0.1.0"
 description = ""
 readme = "README.md"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.13",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "N",  # PEP 8 Naming Conventions (enforces snake_case for functions/variables/methods, PascalCase for classes, UPPER_SNAKE_CASE for constants)
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
