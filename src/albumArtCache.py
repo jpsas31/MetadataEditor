@@ -33,13 +33,13 @@ class AlbumArtCache:
         logger.info(f"Album art cache directory: {self.cache_dir}")
         logger.info(f"Memory cache max size: {self.max_memory_cache_size}")
 
-    def _get_cache_key(self, file_path, image_data, albumArtSize):
+    def _get_cache_key(self, file_path, image_data, album_art_size):
         """Generate a unique cache key based on file path and image data hash."""
 
         image_hash = hashlib.md5(image_data).hexdigest()
 
         path_hash = hashlib.md5(file_path.encode()).hexdigest()
-        return f"{path_hash}_{image_hash}_{albumArtSize}.pkl"
+        return f"{path_hash}_{image_hash}_{album_art_size}.pkl"
 
     def _update_lru(self, cache_key):
         """Update LRU tracking for a cache key."""
@@ -53,11 +53,11 @@ class AlbumArtCache:
                 del self._memory_cache[oldest_key]
                 logger.debug(f"Evicted from memory cache: {oldest_key}")
 
-    def get(self, file_path, image_data, albumArtSize):
+    def get(self, file_path, image_data, album_art_size):
         """Get cached ASCII art for a file path and image data.
         Checks memory cache first, then disk cache."""
         try:
-            cache_key = self._get_cache_key(file_path, image_data, albumArtSize)
+            cache_key = self._get_cache_key(file_path, image_data, album_art_size)
 
             if cache_key in self._memory_cache:
                 logger.debug(f"Memory cache hit for: {file_path}")
@@ -84,11 +84,11 @@ class AlbumArtCache:
             logger.error(f"Error reading from cache: {e}")
             return None
 
-    def set(self, file_path, image_data, ascii_art, albumArtSize):
+    def set(self, file_path, image_data, ascii_art, album_art_size):
         """Cache ASCII art for a file path and image data.
         Stores in both memory and disk cache."""
         try:
-            cache_key = self._get_cache_key(file_path, image_data, albumArtSize)
+            cache_key = self._get_cache_key(file_path, image_data, album_art_size)
 
             self._memory_cache[cache_key] = ascii_art
             self._update_lru(cache_key)

@@ -51,7 +51,7 @@ def _get_spotify_client():
     return _spotify_client
 
 
-def get_Track_Features(query):
+def get_track_features(query):
     """
     Robustly search for track metadata using MusicBrainz and Spotify.
 

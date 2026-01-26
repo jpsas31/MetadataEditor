@@ -39,15 +39,15 @@ class EditorBox(urwid.Edit):
         size: tuple[int],
         key: str,
     ) -> str | None:
-        textoInfo = super().get_text()[0]
+        texto_info = super().get_text()[0]
         modifier = self.modifier()
         if key == "enter":
             if self.tag == "title":
-                modifier.change_title(textoInfo)
+                modifier.change_title(texto_info)
             elif self.tag == "album":
-                modifier.change_album(textoInfo)
+                modifier.change_album(texto_info)
             elif self.tag == "artist":
-                modifier.change_artist(textoInfo)
+                modifier.change_artist(texto_info)
             return None
 
         return super().keypress(size, key)

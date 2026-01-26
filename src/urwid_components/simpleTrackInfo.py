@@ -27,9 +27,7 @@ class SimpleTrackInfo(urwid.Pile):
     def __init__(self):
         logger.info("SimpleTrackInfo.__init__ called")
 
-        self.album_art_container = urwid.Text(
-            "♪\n\nNo Album Art\nAvailable", align="center"
-        )
+        self.album_art_container = urwid.Text("♪\n\nNo Album Art\nAvailable", align="center")
 
         self.filename_text = urwid.Text("", align="center")
         self.title_text = urwid.Text("", align="center")
@@ -106,20 +104,16 @@ class SimpleTrackInfo(urwid.Pile):
                 logger.debug("state.viewInfo exists")
 
                 song_index = None
-                for i in range(state.viewInfo.songsLen()):
-                    if state.viewInfo.songFileName(i) == song_filename:
+                for i in range(state.viewInfo.songs_len()):
+                    if state.viewInfo.song_file_name(i) == song_filename:
                         song_index = i
                         break
 
                 logger.debug(f"Found song_index: {song_index}")
 
                 if song_index is not None:
-                    title, album, artist, album_art = state.viewInfo.songInfo(
-                        song_index
-                    )
-                    logger.debug(
-                        f"Got metadata - Title: {title}, Album: {album}, Artist: {artist}"
-                    )
+                    title, album, artist, album_art = state.viewInfo.song_info(song_index)
+                    logger.debug(f"Got metadata - Title: {title}, Album: {album}, Artist: {artist}")
                     self.title_text.set_text(title)
                     self.album_text.set_text(album)
                     self.artist_text.set_text(artist)
@@ -145,10 +139,12 @@ class SimpleTrackInfo(urwid.Pile):
     def _update_album_art(self, song_filename):
         """Update album art for the given track."""
         logger.info(f"_update_album_art called with: {song_filename}")
-
+        if self.size is None:
+            logger.warning("self.size is None, returning")
+            return
         try:
             if hasattr(state, "viewInfo"):
-                full_path = f"{state.viewInfo.getDir()}/{song_filename}"
+                full_path = f"{state.viewInfo.get_dir()}/{song_filename}"
                 logger.debug(f"Full path: {full_path}")
 
                 apic_frame = ID3(full_path).get("APIC:Cover")
@@ -159,10 +155,10 @@ class SimpleTrackInfo(urwid.Pile):
 
                 logger.info("Found album art! Checking cache...")
                 image_data = apic_frame.data
-                
-                albumArtSize = 20 + int(min(self.size[0], self.size[1]))
-                cached_ascii_art = self._album_art_cache.get(full_path, image_data, albumArtSize)
-                
+
+                album_art_size = 20 + int(min(self.size[0], self.size[1]))
+                cached_ascii_art = self._album_art_cache.get(full_path, image_data, album_art_size)
+
                 if cached_ascii_art:
                     logger.info(f"Using cached album art for: {song_filename}")
                     ascii_art = cached_ascii_art
@@ -173,12 +169,12 @@ class SimpleTrackInfo(urwid.Pile):
                     logger.debug(f"Image size: {img.size}")
                     logger.debug(f"component size: {self.size}")
 
-                   
-                    logger.debug(f"chosen size: {albumArtSize}")
 
-                    ascii_art = convert_pil(img, is_unicode=True, width=albumArtSize)
+                    logger.debug(f"chosen size: {album_art_size}")
 
-                    self._album_art_cache.set(full_path, image_data, ascii_art, albumArtSize)
+                    ascii_art = convert_pil(img, is_unicode=True, width=album_art_size)
+
+                    self._album_art_cache.set(full_path, image_data, ascii_art, album_art_size)
 
                 cover_widget = ANSIWidget(ascii_art)
 
@@ -195,26 +191,19 @@ class SimpleTrackInfo(urwid.Pile):
                     logger.debug(f"ANSIWidget type: {type(cover_widget)}")
                     logger.debug(f"ANSIWidget lines count: {len(cover_widget.lines)}")
                     logger.debug(
-                        f"ANSIWidget first line: {cover_widget.lines[0] if cover_widget.lines else 'NO LINES'}"
+                        f"ANSIWidget first line: "
+                        f"{cover_widget.lines[0] if cover_widget.lines else 'NO LINES'}"
                     )
-                    logger.debug(
-                        f"ANSIWidget display width: {cover_widget._display_width}"
-                    )
+                    logger.debug(f"ANSIWidget display width: {cover_widget._display_width}")
                     logger.debug(f"ANSIWidget pack() returns: {cover_widget.pack()}")
-                    logger.debug(
-                        f"ANSIWidget lines after filtering: {len(cover_widget.lines)}"
-                    )
+                    logger.debug(f"ANSIWidget lines after filtering: {len(cover_widget.lines)}")
 
-                    centered_cover = urwid.Padding(
-                        cover_widget, align="center", width="pack"
-                    )
+                    centered_cover = urwid.Padding(cover_widget, align="center", width="pack")
 
                     new_linebox = urwid.Filler(centered_cover, valign="middle")
 
                     self.contents[0] = (new_linebox, (sizing, size))
-                    logger.info(
-                        "Successfully updated album art widget (direct replacement)"
-                    )
+                    logger.info("Successfully updated album art widget (direct replacement)")
             else:
                 logger.error("state.viewInfo does not exist in _update_album_art!")
 

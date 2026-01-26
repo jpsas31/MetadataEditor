@@ -28,9 +28,7 @@ class MainLoopManager:
         self.audio_player = AudioPlayer()
         self.initialize_key_handler()
         # Create ViewManager with KeyHandler
-        self.view_manager = ViewManager(
-            self.change_view, self.audio_player, self.key_handler
-        )
+        self.view_manager = ViewManager(self.change_view, self.audio_player, self.key_handler)
 
         initial_view = self.view_manager.get_initial_view()
         self.loop = urwid.MainLoop(
@@ -40,11 +38,7 @@ class MainLoopManager:
         )
 
         main_view = self.view_manager.get_view("main")
-        if (
-            main_view
-            and hasattr(main_view, "footer")
-            and hasattr(main_view.footer, "music_bar")
-        ):
+        if main_view and hasattr(main_view, "footer") and hasattr(main_view.footer, "music_bar"):
             threading.Thread(
                 target=self.audio_player.thread_play,
                 args=[main_view.footer.music_bar.update_position],
@@ -59,12 +53,8 @@ class MainLoopManager:
 
     def initialize_key_handler(self):
         """Initialize the key handler."""
-        self.key_handler.register_action(
-            "app_exit", self._handle_exit, needs_context=False
-        )
-        self.key_handler.register_action(
-            "show_help", self._handle_help, needs_context=False
-        )
+        self.key_handler.register_action("app_exit", self._handle_exit, needs_context=False)
+        self.key_handler.register_action("show_help", self._handle_help, needs_context=False)
         self.key_handler.register_action(
             "view_switch_0", lambda: self.change_view(0), needs_context=False
         )
@@ -85,6 +75,7 @@ class MainLoopManager:
         """Get the color palette for the application."""
         return [
             ("Title", "black", "light blue"),
+            ("Notification", "black", "dark red"),
             ("streak", "black", "dark red"),
             ("bg", "black", "dark blue"),
             ("reversed", "standout", ""),
@@ -98,9 +89,7 @@ class MainLoopManager:
     def _check_messages(self, loop, *_args):
         if self.state.updateList:
             main_view = self.view_manager.get_view("main")
-            if hasattr(main_view, "body") and hasattr(
-                main_view.body, "_update_song_list"
-            ):
+            if hasattr(main_view, "body") and hasattr(main_view.body, "_update_song_list"):
                 loop.set_alarm_in(5, main_view.body._update_song_list)
 
         try:
@@ -117,17 +106,13 @@ class MainLoopManager:
     def change_view(self, index_or_song_name):
         if isinstance(index_or_song_name, str):
             song_name = index_or_song_name
-            for i in range(self.state.viewInfo.songsLen()):
-                if self.state.viewInfo.songFileName(i) == song_name:
+            for i in range(self.state.viewInfo.songs_len()):
+                if self.state.viewInfo.song_file_name(i) == song_name:
                     if hasattr(self.view_manager, "shared_song_list"):
                         song_list = self.view_manager.shared_song_list
                         song_list.set_focus(i)
-                        title, album, artist, album_art = self.state.viewInfo.songInfo(
-                            i
-                        )
-                        song_list._update_metadata_panel(
-                            i, title, album, artist, album_art
-                        )
+                        title, album, artist, album_art = self.state.viewInfo.song_info(i)
+                        song_list._update_metadata_panel(i, title, album, artist, album_art)
                     break
         else:
             index = index_or_song_name

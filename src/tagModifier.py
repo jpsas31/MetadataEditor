@@ -106,7 +106,7 @@ class MP3Editor:
         """Fill metadata from Spotify. Batches all ID3 changes into single save (2-3x faster)."""
         try:
             query = self._clean_query()
-            title, artist, album, cover = spotifyInfo.get_Track_Features(query)
+            title, artist, album, cover = spotifyInfo.get_track_features(query)
 
             if title:
                 self.audiofile.add(TIT2(encoding=3, text=title))
@@ -126,7 +126,7 @@ class MP3Editor:
         try:
             if not self.audiofile.get("APIC:Cover"):
                 query = self._clean_query()
-                _, _, _, cover = spotifyInfo.get_Track_Features(query)
+                _, _, _, cover = spotifyInfo.get_track_features(query)
                 if cover:
                     self.add_album_cover(cover, show=show_cover)
         except Exception as e:

@@ -14,19 +14,19 @@ class ViewInfo:
         self.canciones.sort()
         self._metadata_cache = {}
 
-    def getDir(self):
+    def get_dir(self):
         return self.dir
 
-    def addSong(self, song):
+    def add_song(self, song):
         bisect.insort(self.canciones, song)
 
-    def deleteSong(self, song):
+    def delete_song(self, song):
         self.canciones.remove(song)
 
         if song in self._metadata_cache:
             del self._metadata_cache[song]
 
-    def songInfo(self, index):
+    def song_info(self, index):
         if len(self.canciones) == 0:
             return "", "", "", "No Cover"
 
@@ -44,18 +44,18 @@ class ViewInfo:
         if filename in self._metadata_cache:
             del self._metadata_cache[filename]
 
-    def songFileName(self, index):
+    def song_file_name(self, index):
         if len(self.canciones) > 0:
             return self.canciones[index]
         return "None"
 
-    def songsLen(self):
+    def songs_len(self):
         return len(self.canciones)
 
-    def isSong(self, filename):
+    def is_song(self, filename):
         return filename in self.canciones
 
-    def getCurrentSong(self):
+    def get_current_song(self):
         """Get the full path of the current/first song."""
         if len(self.canciones) > 0:
             return f"{self.dir}/{self.canciones[0]}"
