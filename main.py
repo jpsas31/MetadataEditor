@@ -1,6 +1,5 @@
 import sys
 import threading
-from queue import Queue
 
 import src.viewInfo as viewInfo
 from src.singleton import BorgSingleton
@@ -14,12 +13,8 @@ def main():
         raise Warning("Provide a valid dir")
     else:
         dir = sys.argv[1]
-    # dir="."
-    message_q = Queue()
-    state.stop_event = threading.Event()
+
     state.viewInfo = viewInfo.ViewInfo(dir)
-    state.queueYt = message_q
-    state.updateList = False
     main_loop_manager = MainLoopManager(state)
     main_loop_manager.start()
 

@@ -87,13 +87,13 @@ class MainLoopManager:
         self.loop.set_alarm_in(0.5, self._check_messages)
 
     def _check_messages(self, loop, *_args):
-        if self.state.updateList:
+        if self.youtube.update_list:
             main_view = self.view_manager.get_view("main")
             if hasattr(main_view, "body") and hasattr(main_view.body, "_update_song_list"):
                 loop.set_alarm_in(5, main_view.body._update_song_list)
 
         try:
-            msg = self.state.queueYt.get_nowait()
+            msg = self.youtube.message_queue.get_nowait()
 
             main_view = self.view_manager.get_view("main")
             if hasattr(main_view, "body") and hasattr(main_view.body, "text_info"):
@@ -125,7 +125,7 @@ class MainLoopManager:
 
     def _handle_exit(self):
         """Handle exit key."""
-        self.state.stop_event.set()
+        self.audio_player.stop_event.set()
         raise urwid.ExitMainLoop()
 
     def _handle_help(self):

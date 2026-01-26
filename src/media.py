@@ -1,6 +1,6 @@
 import subprocess
 import time
-from threading import Lock, Thread
+from threading import Lock, Thread, Event
 
 import miniaudio
 
@@ -39,6 +39,7 @@ class AudioPlayer:
         self._num_channels = 2
         self._sample_width = 2
         self.ffmpegInstance = None
+        self.stop_event = Event()
 
     def set_media(self, file_name):
         """Load and play an audio file using streaming for better performance."""
@@ -216,21 +217,17 @@ class AudioPlayer:
         """Check if audio is currently playing."""
         with self.lock:
             if not self._loop_enabled:
-                if (
-                    self.is_playing_flag
-                    and self.get_play_position() >= self.sound_length
-                ):
+                if self.is_playing_flag and self.get_play_position() >= self.sound_length:
                     self.is_playing_flag = False
             return self.is_playing_flag and not self.paused
 
     def thread_play(self, update_position):
         """Thread loop for updating playback position."""
-        while not self.state.stop_event.is_set():
+        while not self.stop_event.is_set():
             if self.is_playing():
                 update_position(self.sound_length, self.get_play_position())
             time.sleep(0.01)
 
-    
         self.stop()
 
     def stream_pcm(self, source):
