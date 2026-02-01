@@ -1,9 +1,6 @@
 import urwid
 
-from src.singleton import BorgSingleton
 from src.urwid_components.mediaControls import MediaProgressBar
-
-state = BorgSingleton()
 
 
 class Footer(urwid.Pile):

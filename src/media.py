@@ -1,10 +1,8 @@
 import subprocess
 import time
-from threading import Lock, Thread, Event
+from threading import Event, Lock, Thread
 
 import miniaudio
-
-from src.singleton import BorgSingleton
 
 
 class AudioPlayer:
@@ -21,7 +19,6 @@ class AudioPlayer:
     """
 
     def __init__(self):
-        self.state = BorgSingleton()
         self.paused = False
         self.current_file = None
         self.sound_length = 0

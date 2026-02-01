@@ -7,12 +7,8 @@ from threading import Semaphore
 import urwid
 
 import src.tagModifier as tagModifier
-from src.singleton import BorgSingleton
 from src.urwid_components.editorBox import EditorBox
 from src.urwid_components.header import EDIT_MODE, VIEW_MODE
-
-state = BorgSingleton()
-
 
 MUSICBRAINZ_RATE_LIMIT = Semaphore(4)
 PARALLEL_WORKERS = 10
@@ -28,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 class MetadataEditor(urwid.WidgetPlaceholder):
-    def __init__(self, song_list, top_widget_name, header=None, footer=None):
+    def __init__(self, song_list, top_widget_name, header=None, footer=None, view_info=None):
+        self.view_info = view_info
         self.song_list = song_list
         self.modifier = None
         self.footer = footer
@@ -58,7 +55,7 @@ class MetadataEditor(urwid.WidgetPlaceholder):
     def _initialize_ui(self):
         self.contents = [
             self._create_title_widget("File Name"),
-            self._create_text_widget(state.viewInfo.song_file_name(0)),
+            self._create_text_widget(self.view_info.song_file_name(0)),
             self._create_title_widget("Title"),
             self._create_edit_widget("", "title"),
             self._create_title_widget("Album"),
@@ -108,15 +105,15 @@ class MetadataEditor(urwid.WidgetPlaceholder):
 
     def _update_modifier(self, file_name=None):
         if file_name is None:
-            file_name = state.viewInfo.song_file_name(self.song_list.focus_position)
+            file_name = self.view_info.song_file_name(self.song_list.focus_position)
         if not self.modifier or self.modifier.file_path != file_name:
             self.modifier = tagModifier.MP3Editor(file_name)
 
     def _update_ui_with_metadata(self, file_name):
-        if self.song_list.focus_position >= state.viewInfo.songs_len():
+        if self.song_list.focus_position >= self.view_info.songs_len():
             return
 
-        title, album, artist, album_art = state.viewInfo.song_info(self.song_list.focus_position)
+        title, album, artist, album_art = self.view_info.song_info(self.song_list.focus_position)
 
         if len(self.contents) > 8:
             self.contents[1].set_text(file_name)
@@ -147,16 +144,16 @@ class MetadataEditor(urwid.WidgetPlaceholder):
                 if len(self.contents) > 8:
                     self.contents[8].original_widget.set_label(album_art)
 
-            state.viewInfo.invalidate_cache(self.modifier.file_path)
+            self.view_info.invalidate_cache(self.modifier.file_path)
         except Exception as e:
             print(f"Error setting cover: {e}")
 
     def edit_handler(self, widget, text):
         try:
-            if self.song_list.focus_position >= state.viewInfo.songs_len():
+            if self.song_list.focus_position >= self.view_info.songs_len():
                 return
 
-            file_name = state.viewInfo.song_file_name(self.song_list.focus_position)
+            file_name = self.view_info.song_file_name(self.song_list.focus_position)
             if not os.path.isfile(file_name):
                 return
 
@@ -171,7 +168,7 @@ class MetadataEditor(urwid.WidgetPlaceholder):
             elif widget_index == 7:
                 self.modifier.change_artist(texto_info)
 
-            state.viewInfo.invalidate_cache(file_name)
+            self.view_info.invalidate_cache(file_name)
         except Exception:
             pass
 
@@ -181,7 +178,7 @@ class MetadataEditor(urwid.WidgetPlaceholder):
             self.modifier.fill_metadata_from_spotify()
             self._update_ui_with_metadata(self.modifier.file_path)
 
-            state.viewInfo.invalidate_cache(self.modifier.file_path)
+            self.view_info.invalidate_cache(self.modifier.file_path)
         except Exception:
             pass
 
@@ -199,7 +196,7 @@ class MetadataEditor(urwid.WidgetPlaceholder):
             with MUSICBRAINZ_RATE_LIMIT:
                 modifier.fill_metadata_from_spotify(show_cover=False)
 
-            state.viewInfo.invalidate_cache(file_name)
+            self.view_info.invalidate_cache(file_name)
 
             return True, False, None
         except Exception as e:
@@ -210,7 +207,7 @@ class MetadataEditor(urwid.WidgetPlaceholder):
         import time
 
         try:
-            size = state.viewInfo.songs_len()
+            size = self.view_info.songs_len()
             processed = 0
             skipped = 0
             completed = 0
@@ -218,7 +215,7 @@ class MetadataEditor(urwid.WidgetPlaceholder):
             if self.footer:
                 self.footer.set_status(f"Auto-fill: Starting... (0/{size})")
 
-            tasks = [(i, state.viewInfo.song_file_name(i)) for i in range(size)]
+            tasks = [(i, self.view_info.song_file_name(i)) for i in range(size)]
 
             with ThreadPoolExecutor(max_workers=PARALLEL_WORKERS) as executor:
                 future_to_task = {

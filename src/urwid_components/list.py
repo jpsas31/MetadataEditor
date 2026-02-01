@@ -6,7 +6,6 @@ import time
 import urwid
 
 from src.newkeyhandler import CTX_LIST
-from src.singleton import BorgSingleton
 
 logging.basicConfig(
     filename="/tmp/album_art_debug.log",
@@ -16,12 +15,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-state = BorgSingleton()
-
 
 class ListMod(urwid.ListBox):
-    def __init__(self, body, change_view, audio_player=None, key_handler=None):
-        super().__init__(body)
+    def __init__(self, walker, change_view, audio_player=None, key_handler=None, view_info=None):
+        super().__init__(walker)
+        self.view_info = view_info
+        self.walker = walker
         self.display = None
         self.changeView = change_view
         self.audio_player = audio_player
@@ -119,7 +118,7 @@ class ListMod(urwid.ListBox):
     def _delete_song(self, context):
         """Delete song at cursor position."""
         cursor_pos = context.get("cursor_pos", 0)
-        file_name = state.viewInfo.song_file_name(cursor_pos)
+        file_name = self.view_info.song_file_name(cursor_pos)
         if os.path.isfile(file_name):
             os.remove(file_name)
             if self.display:
@@ -219,16 +218,16 @@ class ListMod(urwid.ListBox):
         if 0 <= new_pos <= max_pos:
             logger.debug("New position is within bounds, setting focus")
             self.set_focus(new_pos)
-            title, album, artist, album_art = state.viewInfo.song_info(new_pos)
+            title, album, artist, album_art = self.view_info.song_info(new_pos)
             self._update_metadata_panel(new_pos, title, album, artist, album_art)
 
     def _play_song(self, pos):
         """Play song at the given position and update footer."""
-        file_name = state.viewInfo.song_file_name(pos)
+        file_name = self.view_info.song_file_name(pos)
         self.audio_player.set_media(file_name)
 
         try:
-            title, album, artist, _ = state.viewInfo.song_info(pos)
+            title, album, artist, _ = self.view_info.song_info(pos)
             if title and artist:
                 display_text = f"{title} - {artist}"
             elif title:
@@ -245,13 +244,13 @@ class ListMod(urwid.ListBox):
         """Play the next song in the list with wrap-around."""
         current_pos = context.get("cursor_pos", 0)
         next_pos = current_pos + 1
-        max_pos = state.viewInfo.songs_len() - 1
+        max_pos = self.view_info.songs_len() - 1
 
         if next_pos > max_pos:
             next_pos = 0
 
         self.set_focus(next_pos)
-        title, album, artist, album_art = state.viewInfo.song_info(next_pos)
+        title, album, artist, album_art = self.view_info.song_info(next_pos)
         self._update_metadata_panel(next_pos, title, album, artist, album_art)
         self._play_song(next_pos)
 
@@ -259,13 +258,13 @@ class ListMod(urwid.ListBox):
         """Play the previous song in the list with wrap-around."""
         current_pos = context.get("cursor_pos", 0)
         prev_pos = current_pos - 1
-        max_pos = state.viewInfo.songs_len() - 1
+        max_pos = self.view_info.songs_len() - 1
 
         if prev_pos < 0:
             prev_pos = max_pos
 
         self.set_focus(prev_pos)
-        title, album, artist, album_art = state.viewInfo.song_info(prev_pos)
+        title, album, artist, album_art = self.view_info.song_info(prev_pos)
         self._update_metadata_panel(prev_pos, title, album, artist, album_art)
         self._play_song(prev_pos)
 
@@ -280,7 +279,7 @@ class ListMod(urwid.ListBox):
         logger.debug(f"Display simple track info: {hasattr(self.display, 'simple_track_info')}")
 
         if self.display and hasattr(self.display, "metadata_editor"):
-            self.display.metadata_editor.contents[1].set_text(state.viewInfo.song_file_name(pos))
+            self.display.metadata_editor.contents[1].set_text(self.view_info.song_file_name(pos))
             self.display.metadata_editor.contents[3].set_edit_text(title)
             logger.debug("Setting title")
             self.display.metadata_editor.contents[5].set_edit_text(album)
@@ -289,5 +288,5 @@ class ListMod(urwid.ListBox):
             self.display.metadata_editor.contents[8].original_widget.set_label(album_art)
 
         if self.display and hasattr(self.display, "simple_track_info"):
-            song_filename = state.viewInfo.song_file_name(pos)
+            song_filename = self.view_info.song_file_name(pos)
             self.display.simple_track_info.update_track(song_filename)

@@ -10,6 +10,7 @@ from src.media import AudioPlayer
 # from src.keyHandler import KeyHandler
 from src.newkeyhandler import CTX_GLOBAL, KeyHandler
 from src.urwid_components.viewManager import ViewManager
+from src.viewInfo import ViewInfo
 
 logging.basicConfig(
     filename="/tmp/album_art_debug.log",
@@ -21,14 +22,17 @@ logger = logging.getLogger(__name__)
 
 
 class MainLoopManager:
-    def __init__(self, state):
-        self.state = state
+    def __init__(self, dir):
+        self.view_info = ViewInfo(dir)
+
         # Initialize KeyHandler first (without list_widget reference)
         self.key_handler = KeyHandler(config=load_keybinds_config())
         self.audio_player = AudioPlayer()
         self.initialize_key_handler()
         # Create ViewManager with KeyHandler
-        self.view_manager = ViewManager(self.change_view, self.audio_player, self.key_handler)
+        self.view_manager = ViewManager(
+            self.change_view, self.audio_player, self.key_handler, self.view_info
+        )
 
         initial_view = self.view_manager.get_initial_view()
         self.loop = urwid.MainLoop(
@@ -87,17 +91,16 @@ class MainLoopManager:
         self.loop.set_alarm_in(0.5, self._check_messages)
 
     def _check_messages(self, loop, *_args):
-        if self.youtube.update_list:
-            main_view = self.view_manager.get_view("main")
-            if hasattr(main_view, "body") and hasattr(main_view.body, "_update_song_list"):
-                loop.set_alarm_in(5, main_view.body._update_song_list)
-
+        view_index = self.view_manager.get_view_index("main")
+        main_display = self.view_manager.get_display_by_index(view_index)
+        if main_display.should_update_song_list:
+            loop.set_alarm_in(5, main_display._update_song_list)
+        logger.info("Checking messages found")
         try:
-            msg = self.youtube.message_queue.get_nowait()
-
-            main_view = self.view_manager.get_view("main")
-            if hasattr(main_view, "body") and hasattr(main_view.body, "text_info"):
-                main_view.body.text_info.set_text(msg)
+            msg = main_display.youtube.message_queue.get_nowait()
+            logger.info(f"Message: {msg}")
+            if msg and main_display.text_info:
+                main_display.text_info.set_text([msg])
         except queue.Empty:
             pass
 
@@ -106,12 +109,12 @@ class MainLoopManager:
     def change_view(self, index_or_song_name):
         if isinstance(index_or_song_name, str):
             song_name = index_or_song_name
-            for i in range(self.state.viewInfo.songs_len()):
-                if self.state.viewInfo.song_file_name(i) == song_name:
+            for i in range(self.view_info.songs_len()):
+                if self.view_info.song_file_name(i) == song_name:
                     if hasattr(self.view_manager, "shared_song_list"):
                         song_list = self.view_manager.shared_song_list
                         song_list.set_focus(i)
-                        title, album, artist, album_art = self.state.viewInfo.song_info(i)
+                        title, album, artist, album_art = self.view_info.song_info(i)
                         song_list._update_metadata_panel(i, title, album, artist, album_art)
                     break
         else:

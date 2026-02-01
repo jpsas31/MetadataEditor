@@ -7,7 +7,6 @@ from mutagen.id3 import ID3
 from PIL import Image, ImageFile
 
 from src.albumArtCache import AlbumArtCache
-from src.singleton import BorgSingleton
 from src.urwid_components.ansiWidget import ANSIWidget
 
 logging.basicConfig(
@@ -18,15 +17,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-state = BorgSingleton()
-
 
 class SimpleTrackInfo(urwid.Pile):
     """Simple component with album art on top and track info below."""
 
-    def __init__(self):
+    def __init__(self, view_info=None):
         logger.info("SimpleTrackInfo.__init__ called")
-
+        self.view_info = view_info
         self.album_art_container = urwid.Text("♪\n\nNo Album Art\nAvailable", align="center")
 
         self.filename_text = urwid.Text("", align="center")
@@ -100,19 +97,17 @@ class SimpleTrackInfo(urwid.Pile):
         logger.debug(f"Set filename text to: {song_filename}")
 
         try:
-            if hasattr(state, "viewInfo"):
-                logger.debug("state.viewInfo exists")
-
+            if hasattr(self.view_info, "songs_len"):
                 song_index = None
-                for i in range(state.viewInfo.songs_len()):
-                    if state.viewInfo.song_file_name(i) == song_filename:
+                for i in range(self.view_info.songs_len()):
+                    if self.view_info.song_file_name(i) == song_filename:
                         song_index = i
                         break
 
                 logger.debug(f"Found song_index: {song_index}")
 
                 if song_index is not None:
-                    title, album, artist, album_art = state.viewInfo.song_info(song_index)
+                    title, album, artist, album_art = self.view_info.song_info(song_index)
                     logger.debug(f"Got metadata - Title: {title}, Album: {album}, Artist: {artist}")
                     self.title_text.set_text(title)
                     self.album_text.set_text(album)
@@ -124,7 +119,7 @@ class SimpleTrackInfo(urwid.Pile):
                     self.album_text.set_text("")
                     self.artist_text.set_text("")
             else:
-                logger.error("state.viewInfo does not exist!")
+                logger.error("self.view_info does not exist!")
         except Exception as e:
             logger.error(f"Exception in update_track metadata section: {e}")
 
@@ -143,8 +138,8 @@ class SimpleTrackInfo(urwid.Pile):
             logger.warning("self.size is None, returning")
             return
         try:
-            if hasattr(state, "viewInfo"):
-                full_path = f"{state.viewInfo.get_dir()}/{song_filename}"
+            if hasattr(self.view_info, "get_dir"):
+                full_path = f"{self.view_info.get_dir()}/{song_filename}"
                 logger.debug(f"Full path: {full_path}")
 
                 apic_frame = ID3(full_path).get("APIC:Cover")
@@ -168,7 +163,6 @@ class SimpleTrackInfo(urwid.Pile):
                     ImageFile.LOAD_TRUNCATED_IMAGES = True
                     logger.debug(f"Image size: {img.size}")
                     logger.debug(f"component size: {self.size}")
-
 
                     logger.debug(f"chosen size: {album_art_size}")
 
@@ -205,7 +199,7 @@ class SimpleTrackInfo(urwid.Pile):
                     self.contents[0] = (new_linebox, (sizing, size))
                     logger.info("Successfully updated album art widget (direct replacement)")
             else:
-                logger.error("state.viewInfo does not exist in _update_album_art!")
+                logger.error("self.view_info does not exist in _update_album_art!")
 
         except Exception as e:
             logger.error(f"Exception in _update_album_art: {e}")

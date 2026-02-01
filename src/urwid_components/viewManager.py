@@ -2,7 +2,6 @@ import logging
 
 import urwid
 
-from src.singleton import BorgSingleton
 from src.urwid_components.display import Display
 from src.urwid_components.footer import Footer
 from src.urwid_components.header import Header
@@ -17,13 +16,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-state = BorgSingleton()
-
 
 class ViewManager:
     """Manages different views in the application."""
 
-    def __init__(self, change_view_callback, audio_player=None, key_handler=None):
+    def __init__(self, change_view_callback, audio_player=None, key_handler=None, view_info=None):
+        self.view_info = view_info
         self.change_view_callback = change_view_callback
         self._widget_map = {}
         self.audio_player = audio_player
@@ -43,6 +41,7 @@ class ViewManager:
             self.change_view_callback,
             self.audio_player,
             self.key_handler,
+            self.view_info,
         )
 
         if self.key_handler:
@@ -55,6 +54,7 @@ class ViewManager:
             header=shared_header,
             song_list=self.shared_song_list,
             widget_map=self._widget_map,
+            view_info=self.view_info,
         )
         self.displays.append(display)
         self.add_view("main", display.frame, "Main View")
@@ -65,8 +65,10 @@ class ViewManager:
             header=shared_header,
             song_list=self.shared_song_list,
             widget_map=self._widget_map,
+            view_info=self.view_info,
         )
-        simple_info_panel = SimpleTrackInfo()
+
+        simple_info_panel = SimpleTrackInfo(self.view_info)
 
         simple_columns = urwid.Columns(
             [urwid.LineBox(simple_display.song_list), simple_info_panel],
@@ -88,6 +90,14 @@ class ViewManager:
         """Get a view by key."""
         return self.views.get(key, {}).get("widget")
 
+    def get_view_index(self, key):
+        """Get the index of a view by key."""
+        return self.view_order.index(key)
+
+    def get_display_by_index(self, index):
+        """Get a display by index."""
+        return self.displays[index]
+
     def get_view_by_index(self, index):
         """Get a view by index."""
         if 0 <= index < len(self.view_order):
@@ -100,13 +110,13 @@ class ViewManager:
             logger.debug(f"Shared song list: {self.shared_song_list.display}")
             # Ensure the active display panels show metadata for the current/first item.
             try:
-                if state.viewInfo.songs_len() > 0:
+                if self.view_info.songs_len() > 0:
                     pos = getattr(self.shared_song_list, "focus_position", 0)
-                    if not isinstance(pos, int) or pos < 0 or pos >= state.viewInfo.songs_len():
+                    if not isinstance(pos, int) or pos < 0 or pos >= self.view_info.songs_len():
                         pos = 0
                         self.shared_song_list.set_focus(pos)
 
-                    title, album, artist, album_art = state.viewInfo.song_info(pos)
+                    title, album, artist, album_art = self.view_info.song_info(pos)
                     self.shared_song_list._update_metadata_panel(
                         pos, title, album, artist, album_art
                     )
@@ -131,8 +141,8 @@ class ViewManager:
     def _generate_menu(self):
         """Generate the initial menu of songs."""
         body = []
-        for i in range(state.viewInfo.songs_len()):
-            song_name = state.viewInfo.song_file_name(i)
+        for i in range(self.view_info.songs_len()):
+            song_name = self.view_info.song_file_name(i)
             button = urwid.Button(song_name)
 
             urwid.connect_signal(

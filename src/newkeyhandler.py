@@ -3,10 +3,6 @@ from typing import Any, Callable, Dict, Mapping
 
 import urwid
 
-from src.singleton import BorgSingleton
-
-state = BorgSingleton()
-
 logger = logging.getLogger(__name__)
 
 # Context IDs (used to scope key bindings)
@@ -83,8 +79,7 @@ class KeyHandler:
         Shape: {"global": {...}, "list": {...}, "metadata": {...}}
         """
         if not all(
-            isinstance(ctx, str) and isinstance(mapping, Mapping)
-            for ctx, mapping in config.items()
+            isinstance(ctx, str) and isinstance(mapping, Mapping) for ctx, mapping in config.items()
         ):
             raise ValueError(
                 "KeyHandler config must be context-based: "
@@ -146,9 +141,7 @@ class KeyHandler:
         if isinstance(self.config, Mapping) and self.config:
             self._apply_keymap_config(self.config)
 
-    def register_action(
-        self, action_name: str, handler: Callable, needs_context: bool = False
-    ):
+    def register_action(self, action_name: str, handler: Callable, needs_context: bool = False):
         """
         Register an action handler.
 

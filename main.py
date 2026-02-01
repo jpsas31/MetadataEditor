@@ -1,11 +1,7 @@
 import sys
 import threading
 
-import src.viewInfo as viewInfo
-from src.singleton import BorgSingleton
 from src.urwid_components.mainLoop import MainLoopManager
-
-state = BorgSingleton()
 
 
 def main():
@@ -14,8 +10,7 @@ def main():
     else:
         dir = sys.argv[1]
 
-    state.viewInfo = viewInfo.ViewInfo(dir)
-    main_loop_manager = MainLoopManager(state)
+    main_loop_manager = MainLoopManager(dir)
     main_loop_manager.start()
 
     for th in threading.enumerate():
