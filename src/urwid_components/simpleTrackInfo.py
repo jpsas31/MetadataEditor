@@ -7,7 +7,7 @@ from mutagen.id3 import ID3
 from PIL import Image, ImageFile
 
 from src.albumArtCache import AlbumArtCache
-from src.urwid_components.ansiWidget import ANSIWidget
+from src.urwid_components.ansiText import ANSIText
 
 logging.basicConfig(
     filename="/tmp/album_art_debug.log",
@@ -138,68 +138,49 @@ class SimpleTrackInfo(urwid.Pile):
             logger.warning("self.size is None, returning")
             return
         try:
-            if hasattr(self.view_info, "get_dir"):
-                full_path = f"{self.view_info.get_dir()}/{song_filename}"
-                logger.debug(f"Full path: {full_path}")
+            full_path = f"{self.view_info.get_dir()}/{song_filename}"
+            logger.debug(f"Full path: {full_path}")
 
-                apic_frame = ID3(full_path).get("APIC:Cover")
-                if not apic_frame:
-                    logger.info(f"No album art found in: {song_filename}")
-                    self._show_placeholder()
-                    return
+            apic_frame = ID3(full_path).get("APIC:Cover")
+            if not apic_frame:
+                logger.info(f"No album art found in: {song_filename}")
+                self._show_placeholder()
+                return
 
-                logger.info("Found album art! Checking cache...")
-                image_data = apic_frame.data
+            logger.info("Found album art! Checking cache...")
+            image_data = apic_frame.data
 
-                album_art_size = 20 + int(min(self.size[0], self.size[1]))
-                cached_ascii_art = self._album_art_cache.get(full_path, image_data, album_art_size)
+            album_art_size = 20 + int(min(self.size[0], self.size[1]))
+            cached_ascii_art = self._album_art_cache.get(full_path, image_data, album_art_size)
 
-                if cached_ascii_art:
-                    logger.info(f"Using cached album art for: {song_filename}")
-                    ascii_art = cached_ascii_art
-                else:
-                    logger.info("Generating ASCII art from image...")
-                    img = Image.open(BytesIO(image_data))
-                    ImageFile.LOAD_TRUNCATED_IMAGES = True
-                    logger.debug(f"Image size: {img.size}")
-                    logger.debug(f"component size: {self.size}")
-
-                    logger.debug(f"chosen size: {album_art_size}")
-
-                    ascii_art = convert_pil(img, is_unicode=True, width=album_art_size)
-
-                    self._album_art_cache.set(full_path, image_data, ascii_art, album_art_size)
-
-                cover_widget = ANSIWidget(ascii_art)
-
-                if cover_widget:
-                    logger.debug(f"self.contents length: {len(self.contents)}")
-                    logger.debug(f"self.contents[0] type: {type(self.contents[0])}")
-                    logger.debug(f"self.contents[0] content: {self.contents[0]}")
-
-                    self.album_art_container = cover_widget
-
-                    current_item = self.contents[0]
-                    linebox, (sizing, size) = current_item
-
-                    logger.debug(f"ANSIWidget type: {type(cover_widget)}")
-                    logger.debug(f"ANSIWidget lines count: {len(cover_widget.lines)}")
-                    logger.debug(
-                        f"ANSIWidget first line: "
-                        f"{cover_widget.lines[0] if cover_widget.lines else 'NO LINES'}"
-                    )
-                    logger.debug(f"ANSIWidget display width: {cover_widget._display_width}")
-                    logger.debug(f"ANSIWidget pack() returns: {cover_widget.pack()}")
-                    logger.debug(f"ANSIWidget lines after filtering: {len(cover_widget.lines)}")
-
-                    centered_cover = urwid.Padding(cover_widget, align="center", width="pack")
-
-                    new_linebox = urwid.Filler(centered_cover, valign="middle")
-
-                    self.contents[0] = (new_linebox, (sizing, size))
-                    logger.info("Successfully updated album art widget (direct replacement)")
+            if cached_ascii_art:
+                logger.info(f"Using cached album art for: {song_filename}")
+                ascii_art = cached_ascii_art
             else:
-                logger.error("self.view_info does not exist in _update_album_art!")
+                logger.info("Generating ASCII art from image...")
+                img = Image.open(BytesIO(image_data))
+                ImageFile.LOAD_TRUNCATED_IMAGES = True
+                logger.debug(f"Image size: {img.size}")
+                logger.debug(f"component size: {self.size}")
+
+                logger.debug(f"chosen size: {album_art_size}")
+
+                ascii_art = convert_pil(img, is_unicode=True, width=album_art_size)
+
+                self._album_art_cache.set(full_path, image_data, ascii_art, album_art_size)
+
+            cover_widget = ANSIText(ascii_art, wrap=urwid.WrapMode.CLIP)
+
+            self.album_art_container = cover_widget
+
+            current_item = self.contents[0]
+            linebox, (sizing, size) = current_item
+
+            centered_cover = urwid.Padding(cover_widget, align="center", width="pack")
+
+            new_linebox = urwid.Filler(centered_cover, valign="middle")
+
+            self.contents[0] = (new_linebox, (sizing, size))
 
         except Exception as e:
             logger.error(f"Exception in _update_album_art: {e}")

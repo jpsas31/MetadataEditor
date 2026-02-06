@@ -100,7 +100,7 @@ class MainLoopManager:
             msg = main_display.youtube.message_queue.get_nowait()
             logger.info(f"Message: {msg}")
             if msg and main_display.text_info:
-                main_display.text_info.set_text([msg])
+                main_display.text_info.set_text(msg)
         except queue.Empty:
             pass
 
