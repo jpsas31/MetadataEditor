@@ -2,11 +2,11 @@ import logging
 
 import urwid
 
-from src.urwid_components.display import Display
+from src.urwid_components.editorView import EditorView
 from src.urwid_components.footer import Footer
 from src.urwid_components.header import Header
 from src.urwid_components.list import ListMod
-from src.urwid_components.simpleTrackInfo import SimpleTrackInfo
+from src.urwid_components.musicPlayerView import MusicPlayerView
 
 logging.basicConfig(
     filename="/tmp/album_art_debug.log",
@@ -48,18 +48,7 @@ class ViewManager:
             self.key_handler.list_widget = self.shared_song_list
             self.shared_song_list.key_handler = self.key_handler
 
-        display = Display(
-            audio_player=self.audio_player,
-            footer=shared_footer,
-            header=shared_header,
-            song_list=self.shared_song_list,
-            widget_map=self._widget_map,
-            view_info=self.view_info,
-        )
-        self.displays.append(display)
-        self.add_view("main", display.frame, "Main View")
-
-        simple_display = Display(
+        display = EditorView(
             audio_player=self.audio_player,
             footer=shared_footer,
             header=shared_header,
@@ -68,17 +57,19 @@ class ViewManager:
             view_info=self.view_info,
         )
 
-        simple_info_panel = SimpleTrackInfo(self.view_info)
-
-        simple_columns = urwid.Columns(
-            [urwid.LineBox(simple_display.song_list), simple_info_panel],
-            dividechars=4,
+        simple_display = MusicPlayerView(
+            audio_player=self.audio_player,
+            footer=shared_footer,
+            header=shared_header,
+            song_list=self.shared_song_list,
+            widget_map=self._widget_map,
+            view_info=self.view_info,
         )
-        simple_frame = urwid.Frame(simple_columns, footer=simple_display.footer)
+
+        self.add_view("music", simple_display.frame, "Music Player")
         self.displays.append(simple_display)
-        simple_display.simple_track_info = simple_info_panel
-
-        self.add_view("music", simple_frame, "Music Player")
+        self.add_view("edit", display.frame, "Main View")
+        self.displays.append(display)
 
     def add_view(self, key, widget, title=None):
         """Add a view to the manager."""

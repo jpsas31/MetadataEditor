@@ -91,7 +91,7 @@ class MainLoopManager:
         self.loop.set_alarm_in(0.5, self._check_messages)
 
     def _check_messages(self, loop, *_args):
-        view_index = self.view_manager.get_view_index("main")
+        view_index = self.view_manager.get_view_index("edit")
         main_display = self.view_manager.get_display_by_index(view_index)
         if main_display.should_update_song_list:
             loop.set_alarm_in(5, main_display._update_song_list)

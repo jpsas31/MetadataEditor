@@ -6,11 +6,12 @@ from src.urwid_components.ansiText import ANSIText
 from src.urwid_components.footer import Footer
 from src.urwid_components.header import Header
 from src.urwid_components.metadataEditor import MetadataEditor
+from src.urwid_components.view import View
 from src.urwid_components.youtubeEdit import CustomEdit
 from src.youtube import Youtube
 
 
-class Display:
+class EditorView(View):
     def __init__(
         self,
         audio_player=None,
@@ -20,15 +21,11 @@ class Display:
         widget_map=None,
         view_info=None,
     ):
-        self.view_info = view_info
+        super().__init__(audio_player, footer, header, song_list, widget_map, view_info)
         self._widget_map = widget_map
-        self.song_list = song_list
         self.song_list.set_display(self)
         self.should_update_song_list = False
-        self.audio_player = audio_player
         self.youtube = Youtube(self)
-        self.footer = footer if footer is not None else Footer()
-        self.header = header if header is not None else Header()
 
         self.metadata_editor = MetadataEditor(
             self.song_list, "pilaMetadata", footer=self.footer, view_info=self.view_info
