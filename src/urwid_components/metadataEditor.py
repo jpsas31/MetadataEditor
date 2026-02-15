@@ -8,7 +8,8 @@ import urwid
 
 import src.tagModifier as tagModifier
 from src.urwid_components.editorBox import EditorBox
-from src.urwid_components.header import EDIT_MODE, VIEW_MODE
+
+# from src.urwid_components.header import EDIT_MODE, VIEW_MODE
 
 MUSICBRAINZ_RATE_LIMIT = Semaphore(4)
 PARALLEL_WORKERS = 10
@@ -31,25 +32,11 @@ class MetadataEditor(urwid.WidgetPlaceholder):
         self.footer = footer
         self.header = header
         self.fill_progress = urwid.ProgressBar("normal", "complete")
-        self.edit_mode = False
         self._update_modifier()
         self._initialize_ui()
         self.original_widget = urwid.ListBox(urwid.SimpleFocusListWalker(self.contents))
 
     def keypress(self, size, key):
-        if key == "e" and not self.edit_mode:
-            self.header.set_mode(EDIT_MODE)
-            self.edit_mode = True
-            self._initialize_ui()
-            return
-        elif key == "esc" and self.edit_mode:
-            self.header.set_mode(VIEW_MODE)
-            self.edit_mode = False
-            return
-
-        if not self.edit_mode and key not in ("up", "down", "left", "right", "esc"):
-            return
-
         return super().keypress(size, key)
 
     def _initialize_ui(self):
@@ -66,12 +53,6 @@ class MetadataEditor(urwid.WidgetPlaceholder):
             self._create_button("Auto-fill Fields", self.fill_fields),
             self._create_button("Auto-fill for All Songs", self.automatic_cover),
         ]
-        # if not self.edit_mode:
-        #     self.buttons = self.contents[-3:]
-        #     self.contents = self.contents[:-3]
-
-        # if self.edit_mode:
-        #     self.contents.extend(self.buttons)
 
     def _create_title_widget(self, text):
         return urwid.AttrMap(urwid.Text(text, align="center"), "Title")
@@ -175,7 +156,7 @@ class MetadataEditor(urwid.WidgetPlaceholder):
     def fill_fields(self, _widget=None, file_name=None):
         try:
             self._update_modifier(file_name)
-            self.modifier.fill_metadata_from_spotify()
+            self.modifier.fill_metadata()
             self._update_ui_with_metadata(self.modifier.file_path)
 
             self.view_info.invalidate_cache(self.modifier.file_path)
@@ -194,7 +175,7 @@ class MetadataEditor(urwid.WidgetPlaceholder):
                 return False, True, None
 
             with MUSICBRAINZ_RATE_LIMIT:
-                modifier.fill_metadata_from_spotify(show_cover=False)
+                modifier.fill_metadata()
 
             self.view_info.invalidate_cache(file_name)
 

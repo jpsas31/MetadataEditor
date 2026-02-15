@@ -1,21 +1,10 @@
-import os
-import re
 from io import BytesIO
 
 import requests
 from mutagen.id3 import APIC, ID3, TALB, TIT2, TPE1
 from PIL import Image
 
-import src.spotifyInfo as spotifyInfo
-
-_REGEX_MP3_EXT = re.compile(r"\.mp3$", re.IGNORECASE)
-_REGEX_PARENTHESES = re.compile(r"\(.*?\)", re.IGNORECASE)
-_REGEX_YEAR = re.compile(r"20[0-9]+[0-9]+", re.IGNORECASE)
-_REGEX_JAPANESE_BRACKETS = re.compile(r"『.*?』", re.IGNORECASE)
-_REGEX_SQUARE_BRACKETS = re.compile(r"\[.*?\]", re.IGNORECASE)
-_REGEX_FT = re.compile(r"ft\.?.*", re.IGNORECASE)
-_REGEX_FEAT = re.compile(r"feat\.?.*", re.IGNORECASE)
-_REGEX_NON_ALPHANUM = re.compile(r"[^a-zA-Z0-9&\ ]+", re.IGNORECASE)
+import src.trackInfo as trackInfo
 
 
 class MP3Editor:
@@ -86,9 +75,7 @@ class MP3Editor:
     def song_info(self):
         title = self.audiofile.get("TIT2").text[0] if self.audiofile.get("TIT2") else ""
         album = self.audiofile.get("TALB").text[0] if self.audiofile.get("TALB") else ""
-        artist = (
-            self.audiofile.get("TPE1").text[0] if self.audiofile.get("TPE1") else ""
-        )
+        artist = self.audiofile.get("TPE1").text[0] if self.audiofile.get("TPE1") else ""
         album_art = False if self.audiofile.get("APIC:Cover") == "" else True
         album_art = "Has cover" if album_art else "No Cover"
         return title, album, artist, album_art
@@ -102,11 +89,13 @@ class MP3Editor:
 
         return bool(title and artist and album and cover)
 
-    def fill_metadata_from_spotify(self, show_cover=False):
+    def fill_metadata(self):
         """Fill metadata from Spotify. Batches all ID3 changes into single save (2-3x faster)."""
         try:
-            query = self._clean_query()
-            title, artist, album, cover = spotifyInfo.get_track_features(query)
+            title, artist, album, _ = self.song_info()
+            title, artist, album, cover = trackInfo.get_track_features(
+                title, artist, album, self.file_path
+            )
 
             if title:
                 self.audiofile.add(TIT2(encoding=3, text=title))
@@ -120,43 +109,14 @@ class MP3Editor:
             if cover:
                 self.add_album_cover(cover, show=False)
         except Exception as e:
-            print(f"Error filling metadata from Spotify: {e}")
+            print(f"Error filling metadata from Spotify: {e}, {self.song_info()}, {self.file_path}")
 
     def set_cover_from_spotify(self, show_cover=True):
         try:
             if not self.audiofile.get("APIC:Cover"):
-                query = self._clean_query()
-                _, _, _, cover = spotifyInfo.get_track_features(query)
+                title, artist, album, _ = self.song_info()
+                _, _, _, cover = trackInfo.get_track_features(title, artist, album, self.file_path)
                 if cover:
                     self.add_album_cover(cover, show=show_cover)
         except Exception as e:
             print(f"Error setting cover from Spotify: {e}")
-
-    def _clean_query(self):
-        """Clean query using pre-compiled regex patterns for 2-5x performance."""
-        title = self.audiofile.get("TIT2").text[0] if self.audiofile.get("TIT2") else ""
-        artist = (
-            self.audiofile.get("TPE1").text[0] if self.audiofile.get("TPE1") else ""
-        )
-        album = self.audiofile.get("TALB").text[0] if self.audiofile.get("TALB") else ""
-
-        if title and title != "None":
-            return " ".join([title, artist, album]).lower()
-        else:
-            query = os.path.basename(self.file_path).lower()
-
-            query = (
-                query.replace(".mp3", "")
-                .replace("by", "")
-                .replace("studio", "")
-                .replace("live", "")
-            )
-
-            query = _REGEX_PARENTHESES.sub("", query)
-            query = _REGEX_YEAR.sub("", query)
-            query = _REGEX_JAPANESE_BRACKETS.sub("", query)
-            query = _REGEX_SQUARE_BRACKETS.sub("", query)
-            query = _REGEX_FT.sub("", query)
-            query = _REGEX_FEAT.sub("", query)
-            query = _REGEX_NON_ALPHANUM.sub(" ", query)
-            return query.lower()

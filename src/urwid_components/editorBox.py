@@ -37,6 +37,7 @@ class EditorBox(urwid.Edit):
     ) -> str | None:
         texto_info = super().get_text()[0]
         modifier = self.modifier()
+
         if key == "enter":
             if self.tag == "title":
                 modifier.change_title(texto_info)

@@ -15,7 +15,7 @@ CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 _spotify_client = None
 
 
-musicbrainzngs.set_useragent("MetadataEditor", "0.1", "contact@example.com")
+musicbrainzngs.set_useragent("MetadataEditor", "0.1", "jpsas31@gmail.com")
 musicbrainzngs.set_rate_limit(limit_or_interval=1.0)
 
 
@@ -34,8 +34,15 @@ _REGEX_PATTERNS = [
     re.compile(r"featuring\s+", re.IGNORECASE),
     re.compile(r"\s*//\s*", re.IGNORECASE),
     re.compile(r"\s*⧸⧸\s*", re.IGNORECASE),
+    re.compile(r"\(.*?\)", re.IGNORECASE),
+    re.compile(r"20[0-9]+[0-9]+", re.IGNORECASE),
+    re.compile(r"『.*?』", re.IGNORECASE),
+    re.compile(r"\[.*?\]", re.IGNORECASE),
+    re.compile(r"ft\.?.*", re.IGNORECASE),
+    re.compile(r"feat\.?.*", re.IGNORECASE),
+    re.compile(r"[^a-zA-Z0-9&\ ]+", re.IGNORECASE),
+    re.compile(r"\s+", re.IGNORECASE),
 ]
-_REGEX_WHITESPACE = re.compile(r"\s+", re.IGNORECASE)
 
 
 def _get_spotify_client():
@@ -45,13 +52,11 @@ def _get_spotify_client():
         client_credentials_manager = SpotifyClientCredentials(
             client_id=CLIENT_ID, client_secret=CLIENT_SECRET
         )
-        _spotify_client = spotipy.Spotify(
-            client_credentials_manager=client_credentials_manager
-        )
+        _spotify_client = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
     return _spotify_client
 
 
-def get_track_features(query):
+def get_track_features(title, artist, album, file_path):
     """
     Robustly search for track metadata using MusicBrainz and Spotify.
 
@@ -61,6 +66,7 @@ def get_track_features(query):
     Returns:
         tuple: (name, artist, album, cover_url) or (None, None, None, None) if not found
     """
+    query = _clean_query(title, artist, album, file_path)
 
     result = _search_musicbrainz(query)
     if result:
@@ -83,29 +89,14 @@ def _search_musicbrainz(query):
     Returns:
         tuple: (name, artist, album, cover_url) or None
     """
-    cleaned_query = _clean_query(query)
 
     try:
-        result = musicbrainzngs.search_recordings(query=cleaned_query, limit=5)
+        result = musicbrainzngs.search_recordings(query=query, limit=5)
         metadata = _extract_musicbrainz_metadata(result)
         if metadata:
             return metadata
     except Exception as e:
         print(f"MusicBrainz cleaned search failed: {e}")
-
-    try:
-        if " - " in query:
-            parts = query.split(" - ", 1)
-            if len(parts) == 2:
-                artist_query, title_query = parts
-                result = musicbrainzngs.search_recordings(
-                    artist=artist_query.strip(), recording=title_query.strip(), limit=5
-                )
-                metadata = _extract_musicbrainz_metadata(result)
-                if metadata:
-                    return metadata
-    except Exception as e:
-        print(f"MusicBrainz artist-title search failed: {e}")
 
     return None
 
@@ -143,9 +134,7 @@ def _extract_musicbrainz_metadata(result):
 
         if release_id:
             try:
-                cover_url = (
-                    f"https://coverartarchive.org/release/{release_id}/front-250"
-                )
+                cover_url = f"https://coverartarchive.org/release/{release_id}/front-250"
 
                 response = requests.head(cover_url, timeout=2)
                 if response.status_code != 200:
@@ -176,36 +165,11 @@ def _search_spotify(query):
         return None
 
     try:
-        cleaned_query = _clean_query(query)
-        result = _search_and_extract(sp, cleaned_query)
+        result = _search_and_extract(sp, query)
         if result:
             return result
     except Exception as e:
         print(f"Spotify cleaned search failed: {e}")
-
-    try:
-        if " - " in query:
-            parts = query.split(" - ", 1)
-            if len(parts) == 2:
-                artist_query, title_query = parts
-
-                result = _search_and_extract(
-                    sp, f"artist:{artist_query.strip()} track:{title_query.strip()}"
-                )
-                if result:
-                    return result
-    except Exception as e:
-        print(f"Spotify artist-title split search failed: {e}")
-
-    try:
-        words = _clean_query(query).split()[:5]
-        if len(words) > 1:
-            short_query = " ".join(words)
-            result = _search_and_extract(sp, short_query)
-            if result:
-                return result
-    except Exception as e:
-        print(f"Spotify short query search failed: {e}")
 
     return None
 
@@ -248,23 +212,16 @@ def _search_and_extract(sp, query, limit=5):
     return None
 
 
-def _clean_query(query):
-    """
-    Clean search query by removing common noise.
-    Uses pre-compiled regex patterns for 2-5x performance improvement.
+def _clean_query(title, artist, album, file_path):
+    """Clean query using pre-compiled regex patterns for 2-5x performance."""
 
-    Args:
-        query: Original query string
+    if len(title) > 0 and title != "None":
+        return " ".join([title, artist, album]).lower()
+    else:
+        query = os.path.basename(file_path).lower()
+        query = _REGEX_FILE_EXT.sub("", query)
 
-    Returns:
-        str: Cleaned query
-    """
+        for pattern in _REGEX_PATTERNS:
+            query = pattern.sub(" ", query)
 
-    query = _REGEX_FILE_EXT.sub("", query)
-
-    for pattern in _REGEX_PATTERNS:
-        query = pattern.sub(" ", query)
-
-    query = _REGEX_WHITESPACE.sub(" ", query).strip()
-
-    return query
+        return query.lower()

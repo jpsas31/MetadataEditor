@@ -284,7 +284,7 @@ Album art/debug logging is written to:
 - `main.py`: entrypoint; initializes shared state and starts the `urwid` main loop
 - `src/viewInfo.py`: scans the target folder and caches per-file metadata
 - `src/tagModifier.py`: ID3 read/write + cover art embedding + auto-fill glue
-- `src/spotifyInfo.py`: MusicBrainz + Spotify lookup logic
+- `src/trackinfo.py`: MusicBrainz + Spotify lookup logic
 - `src/media.py`: playback engine (miniaudio)
 - `src/youtube.py`: YouTube download via `yt-dlp`
 - `src/urwid_components/`: UI widgets (views, footer, metadata editor, downloader panel, etc.)
