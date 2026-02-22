@@ -100,9 +100,7 @@ def ensure_default_keybinds_file(path: Path) -> None:
 
             repo_default = _repo_default_keybinds_path()
             if repo_default.exists():
-                path.write_text(
-                    repo_default.read_text(encoding="utf-8"), encoding="utf-8"
-                )
+                path.write_text(repo_default.read_text(encoding="utf-8"), encoding="utf-8")
                 logger.info(f"Copied default keybinds config to: {path}")
             else:
                 logger.warning(
@@ -144,9 +142,7 @@ def load_keybinds_config() -> Dict[str, Dict[str, str]]:
 
     try:
         if tomllib is None:  # pragma: no cover
-            logger.warning(
-                "tomllib is not available; cannot read TOML keybinds config."
-            )
+            logger.warning("tomllib is not available; cannot read TOML keybinds config.")
             return {}
 
         raw = tomllib.loads(path.read_text(encoding="utf-8"))

@@ -13,9 +13,9 @@ class SimpleTrackInfo(urwid.Pile):
     """Simple component with album art on top and track info below."""
 
     def __init__(self, view_info=None):
+        self.size = None
         self.view_info = view_info
         self.album_art_container = self._create_default_album_art()
-
         self.filename_text = urwid.Text("", align="center")
         self.title_text = urwid.Text("", align="center")
         self.album_text = urwid.Text("", align="center")

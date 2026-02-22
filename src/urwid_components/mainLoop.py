@@ -1,6 +1,7 @@
 import logging
 import queue
 import threading
+from typing import Literal
 
 import urwid
 
@@ -9,6 +10,7 @@ from src.media import AudioPlayer
 
 # from src.keyHandler import KeyHandler
 from src.newkeyhandler import CTX_GLOBAL, KeyHandler
+from src.urwid_components.help import HelpDialog
 from src.urwid_components.viewManager import ViewManager
 from src.viewInfo import ViewInfo
 
@@ -26,7 +28,8 @@ class MainLoopManager:
         self.view_info = ViewInfo(dir)
 
         # Initialize KeyHandler first (without list_widget reference)
-        self.key_handler = KeyHandler(config=load_keybinds_config())
+        self.keybinds_config = load_keybinds_config()
+        self.key_handler = KeyHandler(config=self.keybinds_config)
         self.audio_player = AudioPlayer()
         self.initialize_key_handler()
         # Create ViewManager with KeyHandler
@@ -34,9 +37,9 @@ class MainLoopManager:
             self.change_view, self.audio_player, self.key_handler, self.view_info
         )
 
-        initial_view = self.view_manager.get_initial_view()
+        self.current_view = self.view_manager.get_initial_view()
         self.loop = urwid.MainLoop(
-            initial_view,
+            self.current_view,
             palette=self._get_palette(),
             unhandled_input=self._unhandled_input,
         )
@@ -121,7 +124,8 @@ class MainLoopManager:
             index = index_or_song_name
             view = self.view_manager.get_view_by_index(index)
             if view:
-                self.loop.widget = view
+                self.current_view = view
+                self.loop.widget = self.current_view
 
                 self.loop.screen.clear()
                 self.loop.draw_screen()
@@ -133,10 +137,24 @@ class MainLoopManager:
 
     def _handle_help(self):
         """Handle help key."""
-        if hasattr(self, "view_manager"):
-            main_view = self.view_manager.get_view("main")
-            if main_view and hasattr(main_view, "footer"):
-                main_view.footer.set_status("Press F1 for help | ESC to exit")
+        self.dialog(self.keybinds_config, "center")
+
+    def reset_layout(self, button):
+        self.loop.widget = self.current_view
+        self.loop.draw_screen()
+
+    def dialog(self, text, align=Literal["center", "left", "right"]):
+        dialog = HelpDialog(text, self.reset_layout)
+        w = urwid.Overlay(
+            urwid.LineBox(dialog.layout),
+            self.current_view,
+            align=align,
+            width=50,
+            valign="middle",
+            height=30,
+        )
+
+        self.loop.widget = w
 
     def start(self):
         self.loop.run()

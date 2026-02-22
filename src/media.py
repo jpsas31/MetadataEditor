@@ -266,3 +266,37 @@ class AudioPlayer:
         stream = self.stream_pcm(self.ffmpegInstance.stdout)
         next(stream)
         self.device.start(stream)
+
+
+if __name__ == "__main__":
+    # Replace with a path to a real mp3 file on your system
+    TEST_FILE = "/Users/jpsalgado@truora.com/MetadataEditor/testMusic/Ámbar.mp3"
+
+    player = AudioPlayer()
+    print(f"--- Loading {TEST_FILE} ---")
+    player.set_media(TEST_FILE)
+
+    # Give it a moment to initialize the thread and FFmpeg
+    time.sleep(1)
+
+    print("--- Reading FFmpeg Stdout (Raw PCM Data) ---")
+    print("Press Ctrl+C to stop the stream test\n")
+
+    try:
+        while True:
+            if player.ffmpegInstance and player.ffmpegInstance.stdout:
+                # Read a small chunk of the raw PCM data (e.g., 512 bytes)
+                raw_data = player.ffmpegInstance.stdout.read(512)
+
+                if raw_data:
+                    # Print the hex representation or the length
+                    print(f"Captured {len(raw_data)} bytes: {raw_data}")
+                else:
+                    print("No more data in stdout.")
+                    break
+            else:
+                # Wait for the player to start the FFmpeg instance
+                time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("\nStopping test...")
+        player.stop()
