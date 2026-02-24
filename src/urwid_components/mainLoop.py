@@ -44,17 +44,10 @@ class MainLoopManager:
             unhandled_input=self._unhandled_input,
         )
 
-        main_view = self.view_manager.get_view("main")
-        if main_view and hasattr(main_view, "footer") and hasattr(main_view.footer, "music_bar"):
-            threading.Thread(
-                target=self.audio_player.thread_play,
-                args=[main_view.footer.music_bar.update_position],
-            ).start()
-        else:
-            threading.Thread(
-                target=self.audio_player.thread_play,
-                args=[lambda sound_length, play_position: None],
-            ).start()
+        threading.Thread(
+            target=self.audio_player.thread_play,
+            args=[self.current_view.footer.music_bar.update_position],
+        ).start()
 
         self._schedule_message_check()
 
@@ -114,11 +107,11 @@ class MainLoopManager:
             song_name = index_or_song_name
             for i in range(self.view_info.songs_len()):
                 if self.view_info.song_file_name(i) == song_name:
-                    if hasattr(self.view_manager, "shared_song_list"):
-                        song_list = self.view_manager.shared_song_list
-                        song_list.set_focus(i)
-                        title, album, artist, album_art = self.view_info.song_info(i)
-                        song_list._update_metadata_panel(i, title, album, artist, album_art)
+                  
+                    song_list = self.view_manager.shared_song_list
+                    song_list.set_focus(i)
+                    title, album, artist, album_art = self.view_info.song_info(i)
+                    song_list._update_metadata_panel(i, title, album, artist, album_art)
                     break
         else:
             index = index_or_song_name

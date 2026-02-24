@@ -81,23 +81,22 @@ class SimpleTrackInfo(urwid.Pile):
         self.filename_text.set_text(song_filename)
 
         try:
-            if hasattr(self.view_info, "songs_len"):
-                song_index = None
-                for i in range(self.view_info.songs_len()):
-                    if self.view_info.song_file_name(i) == song_filename:
-                        song_index = i
-                        break
+            song_index = None
+            for i in range(self.view_info.songs_len()):
+                if self.view_info.song_file_name(i) == song_filename:
+                    song_index = i
+                    break
 
-                if song_index is not None:
-                    title, album, artist, album_art = self.view_info.song_info(song_index)
-                    self.title_text.set_text(title)
-                    self.album_text.set_text(album)
-                    self.artist_text.set_text(artist)
-                else:
-                    display_name = song_filename.replace(".mp3", "").replace("_", " ")
-                    self.title_text.set_text(display_name)
-                    self.album_text.set_text("")
-                    self.artist_text.set_text("")
+            if song_index is not None:
+                title, album, artist, album_art = self.view_info.song_info(song_index)
+                self.title_text.set_text(title)
+                self.album_text.set_text(album)
+                self.artist_text.set_text(artist)
+            else:
+                display_name = song_filename.replace(".mp3", "").replace("_", " ")
+                self.title_text.set_text(display_name)
+                self.album_text.set_text("")
+                self.artist_text.set_text("")
 
         except Exception:
             display_name = song_filename.replace(".mp3", "").replace("_", " ")
