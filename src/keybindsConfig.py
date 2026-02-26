@@ -1,10 +1,11 @@
-import logging
 import os
 import re
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Dict, Mapping
 
-logger = logging.getLogger(__name__)
+from src.logging_config import setup_logging
+
+logger = setup_logging(__name__)
 
 try:
     import tomllib  # Python 3.11+
@@ -46,7 +47,7 @@ def _toml_quote_value(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def _keybinds_to_toml(data: Dict[str, Dict[str, str]]) -> str:
+def _keybinds_to_toml(data: dict[str, dict[str, str]]) -> str:
     """Serialize context->(key->action) mapping into a simple TOML string."""
     lines: list[str] = [
         "# MetadataEditor keybinds",
@@ -110,7 +111,7 @@ def ensure_default_keybinds_file(path: Path) -> None:
         logger.warning(f"Failed to create default keybinds config at {path}: {e}")
 
 
-def _validate_keybinds_shape(data: object) -> Dict[str, Dict[str, str]]:
+def _validate_keybinds_shape(data: object) -> dict[str, dict[str, str]]:
     """
     Ensure the config data is a context->(key->action) mapping of strings.
     Invalid entries are ignored.
@@ -118,11 +119,11 @@ def _validate_keybinds_shape(data: object) -> Dict[str, Dict[str, str]]:
     if not isinstance(data, Mapping):
         return {}
 
-    out: Dict[str, Dict[str, str]] = {}
+    out: dict[str, dict[str, str]] = {}
     for ctx, mapping in data.items():
         if not isinstance(ctx, str) or not isinstance(mapping, Mapping):
             continue
-        ctx_map: Dict[str, str] = {}
+        ctx_map: dict[str, str] = {}
         for key, action in mapping.items():
             if isinstance(key, str) and isinstance(action, str):
                 ctx_map[key] = action
@@ -132,7 +133,7 @@ def _validate_keybinds_shape(data: object) -> Dict[str, Dict[str, str]]:
     return out
 
 
-def load_keybinds_config() -> Dict[str, Dict[str, str]]:
+def load_keybinds_config() -> dict[str, dict[str, str]]:
     """
     Ensure a default keybinds file exists and load it.
     Returns {} on any error (app will use built-in defaults).

@@ -1,15 +1,10 @@
-import logging
 import threading
 
 import urwid
 
-logging.basicConfig(
-    filename="/tmp/album_art_debug.log",
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    filemode="w",
-)
-logger = logging.getLogger(__name__)
+from src.logging_config import setup_logging
+
+logger = setup_logging(__name__)
 
 
 class CustomEdit(urwid.Edit):

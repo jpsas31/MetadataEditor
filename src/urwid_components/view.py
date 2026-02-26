@@ -19,7 +19,6 @@ class View:
         self.view_info = view_info
         self._widget_map = widget_map
         self.song_list = song_list
-        self.song_list.set_display(self)
         self.should_update_song_list = False
         self.audio_player = audio_player
         self.footer = footer if footer is not None else Footer()

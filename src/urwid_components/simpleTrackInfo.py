@@ -145,7 +145,7 @@ class SimpleTrackInfo(urwid.Pile):
 
             self.contents[0] = (new_linebox, (sizing, size))
 
-        except Exception as e:
+        except Exception:
             error_widget = urwid.Text("Error loading\nalbum art", align="center")
             filler_widget = self.contents[0][0].original_widget
             filler_widget._w = error_widget

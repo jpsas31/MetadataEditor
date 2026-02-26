@@ -133,7 +133,7 @@ class AudioPlayer:
                     self.paused = False
 
                     current_pos_ms = self._pause_time - self._start_time
-                    start_frame = int((current_pos_ms / 1000.0))
+                    start_frame = int(current_pos_ms / 1000.0)
                     self._start_playback(start_frame)
                 elif not self.is_playing_flag and self.current_file:
                     pass

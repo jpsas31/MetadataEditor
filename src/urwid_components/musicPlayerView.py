@@ -23,7 +23,7 @@ class MusicPlayerView(View):
         self.view_info = view_info
         self._widget_map = widget_map
         self.song_list = song_list
-        self.song_list.set_display(self)
+        self.song_list.set_view(self)
         self.should_update_song_list = False
         self.audio_player = audio_player
         self.youtube = Youtube(self)
@@ -82,3 +82,7 @@ class MusicPlayerView(View):
             self._widget_map[song_name] = widget
         return body
 
+    def update(self, pos, title, album, artist, album_art):
+        """Update the view."""
+        song_filename = self.view_info.song_file_name(pos)
+        self.simple_track_info.update_track(song_filename)

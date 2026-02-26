@@ -1,30 +1,41 @@
+from __future__ import annotations
+
 import hashlib
-import logging
 import os
 import pickle
+from dataclasses import dataclass
 from pathlib import Path
 
-logging.basicConfig(
-    filename="/tmp/album_art_debug.log",
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    filemode="w",
-)
-logger = logging.getLogger(__name__)
+from src.logging_config import setup_logging
+
+logger = setup_logging(__name__)
+
+
+@dataclass
+class CacheStats:
+    """Statistics about the album art cache."""
+
+    memory_items: int
+    memory_max: int
+    disk_items: int
+    disk_size_bytes: int
+    disk_size_mb: float
 
 
 class AlbumArtCache:
     """Two-tier cache (memory + disk) for album art to avoid regenerating ASCII art."""
 
-    def __init__(self, cache_dir=None, max_memory_cache_size=50):
-        self._memory_cache = {}
-        self._cache_access_order = []
+    def __init__(
+        self,
+        cache_dir: str | Path | None = None,
+        max_memory_cache_size: int = 50,
+    ):
+        self._memory_cache: dict[str, str] = {}
+        self._cache_access_order: list[str] = []
         self.max_memory_cache_size = max_memory_cache_size
 
         if cache_dir is None:
-            cache_home = os.environ.get(
-                "XDG_CACHE_HOME", os.path.expanduser("~/.cache")
-            )
+            cache_home = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
             self.cache_dir = Path(cache_home) / "metadata_editor" / "album_art"
         else:
             self.cache_dir = Path(cache_dir)
@@ -33,7 +44,12 @@ class AlbumArtCache:
         logger.info(f"Album art cache directory: {self.cache_dir}")
         logger.info(f"Memory cache max size: {self.max_memory_cache_size}")
 
-    def _get_cache_key(self, file_path, image_data, album_art_size):
+    def _get_cache_key(
+        self,
+        file_path: str,
+        image_data: bytes,
+        album_art_size: tuple[int, int],
+    ) -> str:
         """Generate a unique cache key based on file path and image data hash."""
 
         image_hash = hashlib.md5(image_data).hexdigest()
@@ -41,7 +57,7 @@ class AlbumArtCache:
         path_hash = hashlib.md5(file_path.encode()).hexdigest()
         return f"{path_hash}_{image_hash}_{album_art_size}.pkl"
 
-    def _update_lru(self, cache_key):
+    def _update_lru(self, cache_key: str) -> None:
         """Update LRU tracking for a cache key."""
         if cache_key in self._cache_access_order:
             self._cache_access_order.remove(cache_key)
@@ -53,7 +69,12 @@ class AlbumArtCache:
                 del self._memory_cache[oldest_key]
                 logger.debug(f"Evicted from memory cache: {oldest_key}")
 
-    def get(self, file_path, image_data, album_art_size):
+    def get(
+        self,
+        file_path: str,
+        image_data: bytes,
+        album_art_size: tuple[int, int],
+    ) -> str | None:
         """Get cached ASCII art for a file path and image data.
         Checks memory cache first, then disk cache."""
         try:
@@ -72,9 +93,7 @@ class AlbumArtCache:
 
                 self._memory_cache[cache_key] = ascii_art
                 self._update_lru(cache_key)
-                logger.debug(
-                    f"Promoted to memory cache (size: {len(self._memory_cache)})"
-                )
+                logger.debug(f"Promoted to memory cache (size: {len(self._memory_cache)})")
 
                 return ascii_art
             else:
@@ -84,7 +103,13 @@ class AlbumArtCache:
             logger.error(f"Error reading from cache: {e}")
             return None
 
-    def set(self, file_path, image_data, ascii_art, album_art_size):
+    def set(
+        self,
+        file_path: str,
+        image_data: bytes,
+        ascii_art: str,
+        album_art_size: tuple[int, int],
+    ) -> None:
         """Cache ASCII art for a file path and image data.
         Stores in both memory and disk cache."""
         try:
@@ -102,7 +127,7 @@ class AlbumArtCache:
         except Exception as e:
             logger.error(f"Error writing to cache: {e}")
 
-    def clear(self, clear_disk=True):
+    def clear(self, clear_disk: bool = True) -> None:
         """Clear cache.
 
         Args:
@@ -120,7 +145,7 @@ class AlbumArtCache:
         except Exception as e:
             logger.error(f"Error clearing cache: {e}")
 
-    def get_cache_size(self):
+    def get_cache_size(self) -> int:
         """Get the total size of the disk cache in bytes."""
         try:
             total_size = sum(f.stat().st_size for f in self.cache_dir.glob("*.pkl"))
@@ -129,19 +154,25 @@ class AlbumArtCache:
             logger.error(f"Error calculating cache size: {e}")
             return 0
 
-    def get_cache_stats(self):
+    def get_cache_stats(self) -> CacheStats:
         """Get statistics about the cache."""
         try:
             disk_files = list(self.cache_dir.glob("*.pkl"))
             disk_size = sum(f.stat().st_size for f in disk_files)
 
-            return {
-                "memory_items": len(self._memory_cache),
-                "memory_max": self.max_memory_cache_size,
-                "disk_items": len(disk_files),
-                "disk_size_bytes": disk_size,
-                "disk_size_mb": disk_size / (1024 * 1024),
-            }
+            return CacheStats(
+                memory_items=len(self._memory_cache),
+                memory_max=self.max_memory_cache_size,
+                disk_items=len(disk_files),
+                disk_size_bytes=disk_size,
+                disk_size_mb=disk_size / (1024 * 1024),
+            )
         except Exception as e:
             logger.error(f"Error getting cache stats: {e}")
-            return {}
+            return CacheStats(
+                memory_items=0,
+                memory_max=self.max_memory_cache_size,
+                disk_items=0,
+                disk_size_bytes=0,
+                disk_size_mb=0.0,
+            )

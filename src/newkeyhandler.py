@@ -1,9 +1,11 @@
-import logging
-from typing import Any, Callable, Dict, Mapping
+from collections.abc import Callable, Mapping
+from typing import Any
 
 import urwid
 
-logger = logging.getLogger(__name__)
+from src.logging_config import setup_logging
+
+logger = setup_logging(__name__)
 
 # Context IDs (used to scope key bindings)
 CTX_GLOBAL = "global"
@@ -40,11 +42,11 @@ class KeyHandler:
     """Context-aware keyboard shortcut management system."""
 
     def __init__(self, config: Mapping[str, Mapping[str, str]] | None = None):
-        self.actions: Dict[str, Callable] = {}
-        self.keymaps: Dict[str, Dict[str, str]] = {}
+        self.actions: dict[str, Callable] = {}
+        self.keymaps: dict[str, dict[str, str]] = {}
         self.config = config or {}
         self.list_widget = None
-        self.context_parents: Dict[str, str] = {
+        self.context_parents: dict[str, str] = {
             CTX_LIST: CTX_GLOBAL,
             CTX_METADATA: CTX_GLOBAL,
             CTX_YOUTUBE: CTX_GLOBAL,
@@ -162,7 +164,7 @@ class KeyHandler:
         self,
         key: str,
         widget_context: str = CTX_GLOBAL,
-        context: Dict[str, Any] = None,
+        context: dict[str, Any] | None = None,
     ) -> bool:
         """
         Handle a key press with context awareness.
@@ -208,7 +210,7 @@ class KeyHandler:
             logger.error(f"Error handling key '{key}' (action '{action_name}'): {e}")
             return False
 
-    def _get_default_context(self) -> Dict[str, Any]:
+    def _get_default_context(self) -> dict[str, Any]:
         """Get default context when none is provided."""
         context = {}
 

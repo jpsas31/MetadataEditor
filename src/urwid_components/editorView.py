@@ -2,11 +2,14 @@ import os
 
 import urwid
 
+from src.logging_config import setup_logging
 from src.urwid_components.ansiText import ANSIText
 from src.urwid_components.metadataEditor import MetadataEditor
 from src.urwid_components.view import View
 from src.urwid_components.youtubeEdit import CustomEdit
 from src.youtube import Youtube
+
+logger = setup_logging(__name__)
 
 
 class EditorView(View):
@@ -21,9 +24,10 @@ class EditorView(View):
     ):
         super().__init__(audio_player, footer, header, song_list, widget_map, view_info)
         self._widget_map = widget_map
-        self.song_list.set_display(self)
+        self.song_list.set_view(self)
         self.should_update_song_list = False
         self.youtube = Youtube(self)
+        self.view_info = view_info
 
         self.metadata_editor = MetadataEditor(
             self.song_list, "pilaMetadata", footer=self.footer, view_info=self.view_info
@@ -112,3 +116,15 @@ class EditorView(View):
                 break
 
         self.columns.focus_col = 1 if self.columns.focus_col == 0 else 0
+
+    def update(self, pos, title, album, artist, album_art):
+        logger.debug(f"Updating metadata editor for position: {pos}")
+        logger.debug(f"Title: {title}")
+        logger.debug(f"Album: {album}")
+        logger.debug(f"Artist: {artist}")
+        logger.debug(f"Album art: {album_art}")
+        self.metadata_editor.contents[1].set_text(self.view_info.song_file_name(pos))
+        self.metadata_editor.contents[3].set_edit_text(title)
+        self.metadata_editor.contents[5].set_edit_text(album)
+        self.metadata_editor.contents[7].set_edit_text(artist)
+        self.metadata_editor.contents[8].original_widget.set_label(album_art)

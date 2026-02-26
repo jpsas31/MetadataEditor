@@ -1,4 +1,5 @@
-from typing import Hashable, Literal
+from collections.abc import Hashable
+from typing import Literal
 
 import urwid
 

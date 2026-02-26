@@ -1,11 +1,12 @@
 import re
-from typing import Any, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 import urwid
 
 
 class ANSICanvas(urwid.canvas.Canvas):
-    def __init__(self, size: Tuple[int, ...], text_lines: List[str]) -> None:
+    def __init__(self, size: tuple[int, ...], text_lines: list[str]) -> None:
         super().__init__()
 
         if len(size) == 1:
@@ -26,10 +27,10 @@ class ANSICanvas(urwid.canvas.Canvas):
         self,
         trim_left: int = 0,
         trim_top: int = 0,
-        cols: Optional[int] = None,
-        rows: Optional[int] = None,
-        attr_map: Optional[Any] = None,
-    ) -> Iterable[List[Tuple[None, str, bytes]]]:
+        cols: int | None = None,
+        rows: int | None = None,
+        attr_map: Any | None = None,
+    ) -> Iterable[list[tuple[None, str, bytes]]]:
         assert cols is not None
         assert rows is not None
 
@@ -72,7 +73,7 @@ class ANSIWidget(urwid.Widget):
             max_width = max(max_width, width)
         return max_width
 
-    def set_content(self, lines: List[str]) -> None:
+    def set_content(self, lines: list[str]) -> None:
         self.lines = lines
 
         while self.lines:
@@ -84,16 +85,16 @@ class ANSIWidget(urwid.Widget):
         self._display_width = self._calculate_display_width()
         self._invalidate()
 
-    def render(self, size: Tuple[int, ...], focus: bool = False) -> urwid.canvas.Canvas:
+    def render(self, size: tuple[int, ...], focus: bool = False) -> urwid.canvas.Canvas:
         canvas = ANSICanvas(size, self.lines)
         return canvas
 
-    def rows(self, size: Tuple[int, ...], focus: bool = False) -> int:
+    def rows(self, size: tuple[int, ...], focus: bool = False) -> int:
         return len(self.lines)
 
     def pack(
-        self, size: Optional[Tuple[int, ...]] = None, focus: bool = False
-    ) -> Tuple[int, int]:
+        self, size: tuple[int, ...] | None = None, focus: bool = False
+    ) -> tuple[int, int]:
         """Return the natural size of the widget (width, height)."""
         return (self._display_width, len(self.lines))
 

@@ -125,10 +125,10 @@ def _extract_musicbrainz_metadata(result):
     album = None
     cover_url = None
 
-    if "artist-credit" in recording and recording["artist-credit"]:
+    if recording.get("artist-credit"):
         artist = recording["artist-credit"][0]["artist"]["name"]
 
-    if "release-list" in recording and recording["release-list"]:
+    if recording.get("release-list"):
         album = recording["release-list"][0].get("title")
         release_id = recording["release-list"][0].get("id")
 

@@ -1,20 +1,13 @@
-import logging
-
 import urwid
 
+from src.logging_config import setup_logging
 from src.urwid_components.editorView import EditorView
 from src.urwid_components.footer import Footer
 from src.urwid_components.header import Header
 from src.urwid_components.list import ListMod
 from src.urwid_components.musicPlayerView import MusicPlayerView
 
-logging.basicConfig(
-    filename="/tmp/album_art_debug.log",
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    filemode="w",
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 
 class ViewManager:
@@ -26,6 +19,7 @@ class ViewManager:
         self.audio_player = audio_player
         self.key_handler = key_handler
         self.views = {}
+        self.current_view_frame = None
         self.view_order = []
         self._initialize_views()
 
@@ -79,7 +73,7 @@ class ViewManager:
 
     def get_view(self, key):
         """Get a view by key."""
-        return self.views.get(key, {}).get("widget")
+        return self.views.get(key, {}).get("widget", None)
 
     def _generate_menu(self):
         """Generate the initial menu of songs."""
@@ -93,3 +87,11 @@ class ViewManager:
             self._widget_map[song_name] = widget
 
         return body
+
+    def change_view(self, key):
+        """Change the current view."""
+        view = self.get_view(key)
+        if view:
+            self.shared_song_list.set_view(view)
+            self.current_view_frame = view.frame
+        return self.current_view_frame

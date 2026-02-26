@@ -1,4 +1,3 @@
-import logging
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -7,6 +6,7 @@ from threading import Semaphore
 import urwid
 
 import src.tagModifier as tagModifier
+from src.logging_config import setup_logging
 from src.urwid_components.editorBox import EditorBox
 
 # from src.urwid_components.header import EDIT_MODE, VIEW_MODE
@@ -14,14 +14,7 @@ from src.urwid_components.editorBox import EditorBox
 MUSICBRAINZ_RATE_LIMIT = Semaphore(4)
 PARALLEL_WORKERS = 10
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    filename="/tmp/album_art_debug.log",
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    filemode="w",
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 
 class MetadataEditor(urwid.WidgetPlaceholder):

@@ -1,4 +1,3 @@
-import logging
 import queue
 import threading
 from typing import Literal
@@ -6,6 +5,7 @@ from typing import Literal
 import urwid
 
 from src.keybindsConfig import load_keybinds_config
+from src.logging_config import setup_logging
 from src.media import AudioPlayer
 
 # from src.keyHandler import KeyHandler
@@ -14,13 +14,7 @@ from src.urwid_components.help import HelpDialog
 from src.urwid_components.viewManager import ViewManager
 from src.viewInfo import ViewInfo
 
-logging.basicConfig(
-    filename="/tmp/album_art_debug.log",
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    filemode="w",
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 
 class MainLoopManager:
@@ -43,16 +37,16 @@ class MainLoopManager:
         self.initialize_key_handler()
         self.view_manager = ViewManager(self.audio_player, self.key_handler, self.view_info)
 
-        self.current_view = self.view_manager.get_view("music").frame
+        self.view_manager.current_view_frame = self.view_manager.get_view("music").frame
         self.loop = urwid.MainLoop(
-            self.current_view,
+            self.view_manager.current_view_frame,
             palette=self.Palette,
             unhandled_input=self._unhandled_input,
         )
 
         threading.Thread(
             target=self.audio_player.thread_play,
-            args=[self.current_view.footer.music_bar.update_position],
+            args=[self.view_manager.current_view_frame.footer.music_bar.update_position],
         ).start()
 
         self._schedule_message_check()
@@ -94,13 +88,9 @@ class MainLoopManager:
         self._schedule_message_check()
 
     def change_view(self, key):
-        view = self.view_manager.get_view(key)
-        if view:
-            self.current_view = view.frame
-            self.loop.widget = self.current_view
-
-            self.loop.screen.clear()
-            self.loop.draw_screen()
+        self.loop.widget = self.view_manager.change_view(key)
+        self.loop.screen.clear()
+        self.loop.draw_screen()
 
     def _handle_exit(self):
         """Handle exit key."""
@@ -112,7 +102,7 @@ class MainLoopManager:
         self.dialog(self.keybinds_config, "center")
 
     def reset_layout(self, button):
-        self.loop.widget = self.current_view.frame
+        self.loop.widget = self.view_manager.current_view_frame
         self.loop.draw_screen()
 
     def main_shadow(self, bg, w):
@@ -154,7 +144,7 @@ class MainLoopManager:
     def dialog(self, text, align=Literal["center", "left", "right"]):
         dialog = HelpDialog(text, self.reset_layout)
 
-        self.loop.widget = self.main_shadow(self.current_view, dialog.layout)
+        self.loop.widget = self.main_shadow(self.view_manager.current_view_frame, dialog.layout)
 
     def start(self):
         self.loop.run()
