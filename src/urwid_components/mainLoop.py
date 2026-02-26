@@ -24,23 +24,29 @@ logger = logging.getLogger(__name__)
 
 
 class MainLoopManager:
+    Palette = [
+        ("Title", "black", "light blue"),
+        ("Notification", "black", "dark red"),
+        ("streak", "black", "dark red"),
+        ("bg", "black", "dark blue"),
+        ("reversed", "standout", ""),
+        ("normal", "black", "light blue"),
+        ("complete", "black", "dark magenta"),
+        ("main shadow", "dark gray", "black"),
+    ]
+
     def __init__(self, dir):
         self.view_info = ViewInfo(dir)
-
-        # Initialize KeyHandler first (without list_widget reference)
         self.keybinds_config = load_keybinds_config()
         self.key_handler = KeyHandler(config=self.keybinds_config)
         self.audio_player = AudioPlayer()
         self.initialize_key_handler()
-        # Create ViewManager with KeyHandler
-        self.view_manager = ViewManager(
-            self.change_view, self.audio_player, self.key_handler, self.view_info
-        )
+        self.view_manager = ViewManager(self.audio_player, self.key_handler, self.view_info)
 
-        self.current_view = self.view_manager.get_initial_view()
+        self.current_view = self.view_manager.get_view("music").frame
         self.loop = urwid.MainLoop(
             self.current_view,
-            palette=self._get_palette(),
+            palette=self.Palette,
             unhandled_input=self._unhandled_input,
         )
 
@@ -56,13 +62,13 @@ class MainLoopManager:
         self.key_handler.register_action("app_exit", self._handle_exit, needs_context=False)
         self.key_handler.register_action("show_help", self._handle_help, needs_context=False)
         self.key_handler.register_action(
-            "view_switch_0", lambda: self.change_view(0), needs_context=False
+            "view_switch_0", lambda: self.change_view("music"), needs_context=False
         )
         self.key_handler.register_action(
-            "view_switch_1", lambda: self.change_view(1), needs_context=False
+            "view_switch_1", lambda: self.change_view("edit"), needs_context=False
         )
         self.key_handler.register_action(
-            "view_switch_2", lambda: self.change_view(2), needs_context=False
+            "view_switch_2", lambda: self.change_view("music"), needs_context=False
         )
 
     def _unhandled_input(self, key):
@@ -71,31 +77,15 @@ class MainLoopManager:
             return True
         return key
 
-    def _get_palette(self):
-        """Get the color palette for the application."""
-        return [
-            ("Title", "black", "light blue"),
-            ("Notification", "black", "dark red"),
-            ("streak", "black", "dark red"),
-            ("bg", "black", "dark blue"),
-            ("reversed", "standout", ""),
-            ("normal", "black", "light blue"),
-            ("complete", "black", "dark magenta"),
-            ("main shadow", "dark gray", "black"),
-        ]
-
     def _schedule_message_check(self):
         self.loop.set_alarm_in(0.5, self._check_messages)
 
     def _check_messages(self, loop, *_args):
-        view_index = self.view_manager.get_view_index("edit")
-        main_display = self.view_manager.get_display_by_index(view_index)
+        main_display = self.view_manager.get_view("edit")
         if main_display.should_update_song_list:
             loop.set_alarm_in(5, main_display._update_song_list)
-        logger.info("Checking messages found")
         try:
             msg = main_display.youtube.message_queue.get_nowait()
-            logger.info(f"Message: {msg}")
             if msg and main_display.text_info:
                 main_display.text_info.set_text(msg)
         except queue.Empty:
@@ -103,25 +93,14 @@ class MainLoopManager:
 
         self._schedule_message_check()
 
-    def change_view(self, index_or_song_name):
-        if isinstance(index_or_song_name, str):
-            song_name = index_or_song_name
-            for i in range(self.view_info.songs_len()):
-                if self.view_info.song_file_name(i) == song_name:
-                    song_list = self.view_manager.shared_song_list
-                    song_list.set_focus(i)
-                    title, album, artist, album_art = self.view_info.song_info(i)
-                    song_list._update_metadata_panel(i, title, album, artist, album_art)
-                    break
-        else:
-            index = index_or_song_name
-            view = self.view_manager.get_view_by_index(index)
-            if view:
-                self.current_view = view
-                self.loop.widget = self.current_view
+    def change_view(self, key):
+        view = self.view_manager.get_view(key)
+        if view:
+            self.current_view = view.frame
+            self.loop.widget = self.current_view
 
-                self.loop.screen.clear()
-                self.loop.draw_screen()
+            self.loop.screen.clear()
+            self.loop.draw_screen()
 
     def _handle_exit(self):
         """Handle exit key."""
@@ -133,7 +112,7 @@ class MainLoopManager:
         self.dialog(self.keybinds_config, "center")
 
     def reset_layout(self, button):
-        self.loop.widget = self.current_view
+        self.loop.widget = self.current_view.frame
         self.loop.draw_screen()
 
     def main_shadow(self, bg, w):
@@ -143,6 +122,7 @@ class MainLoopManager:
         width = 50
         height = 30
         align = urwid.CENTER
+
         bg = urwid.Overlay(
             shadow,
             bg,
@@ -155,6 +135,7 @@ class MainLoopManager:
             top=2,
             bottom=1,
         )
+
         w = urwid.Overlay(
             w,
             bg,

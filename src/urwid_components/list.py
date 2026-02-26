@@ -17,12 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 class ListMod(urwid.ListBox):
-    def __init__(self, walker, change_view, audio_player=None, key_handler=None, view_info=None):
+    def __init__(self, walker, audio_player=None, key_handler=None, view_info=None):
         super().__init__(walker)
         self.view_info = view_info
         self.walker = walker
         self.display = None
-        self.changeView = change_view
         self.audio_player = audio_player
         self.key_handler = key_handler
         self._last_volume = 1.0
