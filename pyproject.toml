@@ -46,6 +46,7 @@ readme = "README.md"
 [dependency-groups]
 dev = [
     "ruff",
+    "pytest",
 ]
 
 [tool.ruff]
@@ -59,8 +60,20 @@ select = [
     "W",  # pycodestyle warnings
     "F",  # pyflakes
     "I",  # isort
+    "UP",  # pyupgrade (e.g., f"{x}" -> x)
+    "YTT",  # pygrep-no-str-eval
+    "C4",  # comprehensions
+    "RUF",  # ruff-specific rules
 ]
-ignore = []
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["RUF", "C4"]  # Allow some flexibility in tests
+"src/Untitled-1.py" = ["RUF", "UP", "F"]  # Dead code file
+"src/urwid_components/*" = ["RUF012", "RUF059"]  # Mutable class attrs and unused vars in UI
+"src/trackInfo.py" = ["RUF001"]  # Ambiguous character in regex
 
 [tool.ruff.format]
 quote-style = "double"
