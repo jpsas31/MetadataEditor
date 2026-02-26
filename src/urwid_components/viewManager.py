@@ -66,10 +66,15 @@ class ViewManager:
             view_info=self.view_info,
         )
 
+        background_view = urwid.Frame(
+            urwid.SolidFill("▒"), header=shared_header, footer=shared_footer
+        )
+
         self.add_view("music", simple_display.frame, "Music Player")
         self.displays.append(simple_display)
         self.add_view("edit", display.frame, "Main View")
         self.displays.append(display)
+        self.add_view("background", background_view, "Background")
 
     def add_view(self, key, widget, title=None):
         """Add a view to the manager."""

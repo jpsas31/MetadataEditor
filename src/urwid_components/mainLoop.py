@@ -81,6 +81,7 @@ class MainLoopManager:
             ("reversed", "standout", ""),
             ("normal", "black", "light blue"),
             ("complete", "black", "dark magenta"),
+            ("main shadow", "dark gray", "black"),
         ]
 
     def _schedule_message_check(self):
@@ -107,7 +108,6 @@ class MainLoopManager:
             song_name = index_or_song_name
             for i in range(self.view_info.songs_len()):
                 if self.view_info.song_file_name(i) == song_name:
-                  
                     song_list = self.view_manager.shared_song_list
                     song_list.set_focus(i)
                     title, album, artist, album_art = self.view_info.song_info(i)
@@ -136,18 +136,44 @@ class MainLoopManager:
         self.loop.widget = self.current_view
         self.loop.draw_screen()
 
-    def dialog(self, text, align=Literal["center", "left", "right"]):
-        dialog = HelpDialog(text, self.reset_layout)
-        w = urwid.Overlay(
-            urwid.LineBox(dialog.layout),
-            self.current_view,
+    def main_shadow(self, bg, w):
+        """Wrap a shadow and background around widget w."""
+        bg = self.view_manager.get_view("background")
+        shadow = urwid.AttrMap(urwid.SolidFill(" "), "main shadow")
+        width = 50
+        height = 30
+        align = urwid.CENTER
+        bg = urwid.Overlay(
+            shadow,
+            bg,
             align=align,
-            width=50,
-            valign="middle",
-            height=30,
+            width=width,
+            valign=urwid.MIDDLE,
+            height=height,
+            left=3,
+            right=1,
+            top=2,
+            bottom=1,
+        )
+        w = urwid.Overlay(
+            w,
+            bg,
+            align=align,
+            width=width,
+            valign=urwid.MIDDLE,
+            height=height,
+            left=2,
+            right=3,
+            top=1,
+            bottom=2,
         )
 
-        self.loop.widget = w
+        return w
+
+    def dialog(self, text, align=Literal["center", "left", "right"]):
+        dialog = HelpDialog(text, self.reset_layout)
+
+        self.loop.widget = self.main_shadow(self.current_view, dialog.layout)
 
     def start(self):
         self.loop.run()

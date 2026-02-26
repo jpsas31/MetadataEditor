@@ -3,8 +3,6 @@ import os
 import urwid
 
 from src.urwid_components.ansiText import ANSIText
-from src.urwid_components.footer import Footer
-from src.urwid_components.header import Header
 from src.urwid_components.metadataEditor import MetadataEditor
 from src.urwid_components.view import View
 from src.urwid_components.youtubeEdit import CustomEdit
